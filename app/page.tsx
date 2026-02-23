@@ -1,402 +1,725 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
-const STX_TO_NGN_RATE = 1_847.35; // mock rate
-const NGN_TO_STX_RATE = 1 / STX_TO_NGN_RATE;
+const TOKENS = [
+  { id: "STX", label: "Stacks", symbol: "STX", color: "#FF6B00", glow: "#FF6B0044", rate: 1847.35, icon: "S", change: +2.4 },
+  { id: "USDC", label: "USD Coin", symbol: "USDC", color: "#2775CA", glow: "#2775CA44", rate: 1620.5, icon: "$", change: +0.1 },
+];
 
 function formatNGN(val: number) {
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 2,
-  }).format(val);
+  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 2 }).format(val);
 }
 
-function formatSTX(val: number) {
-  return val.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+function AnimatedNumber({ value, prefix = "" }: { value: number; prefix?: string }) {
+  const [display, setDisplay] = useState(value);
+  const prev = useRef(value);
+  useEffect(() => {
+    const start = prev.current;
+    const end = value;
+    const duration = 400;
+    const startTime = performance.now();
+    const frame = (now: number) => {
+      const p = Math.min((now - startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setDisplay(start + (end - start) * ease);
+      if (p < 1) requestAnimationFrame(frame);
+      else prev.current = end;
+    };
+    requestAnimationFrame(frame);
+  }, [value]);
+  return <>{prefix}{display.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>;
 }
 
 export default function Home() {
-  const [mode, setMode] = useState<"buy" | "sell">("sell");
-  const [stxAmount, setStxAmount] = useState("100");
+  const [mode, setMode] = useState<"sell" | "buy">("sell");
+  const [selectedToken, setSelectedToken] = useState("STX");
+  const [tokenAmount, setTokenAmount] = useState("100");
   const [ngnAmount, setNgnAmount] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [tick, setTick] = useState(0);
+  const [focused, setFocused] = useState<"token" | "ngn" | null>(null);
+  const [recentTx] = useState([
+    { type: "sell", token: "STX", amount: "250", ngn: "461,837.50", time: "2m ago" },
+    { type: "buy", token: "USDC", amount: "100", ngn: "162,050.00", time: "5m ago" },
+    { type: "sell", token: "STX", amount: "50", ngn: "92,367.50", time: "11m ago" },
+  ]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; speed: number; opacity: number }[]>([]);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
-  // Simulate live rate tick
+  const token = TOKENS.find((t) => t.id === selectedToken)!;
+  const liveRate = token.rate + Math.sin(tick * 0.7) * (selectedToken === "STX" ? 14 : 2.5);
+  const ngnValue = (parseFloat(tokenAmount) || 0) * liveRate;
+  const fee = ngnValue * 0.005;
+  const youGet = ngnValue - fee;
+
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 3000);
+    const id = setInterval(() => setTick((t) => t + 1), 2500);
     return () => clearInterval(id);
   }, []);
 
-  const liveRate = STX_TO_NGN_RATE + Math.sin(tick * 0.7) * 12;
-
   useEffect(() => {
     if (mode === "sell") {
-      const stx = parseFloat(stxAmount) || 0;
-      setNgnAmount(stx > 0 ? (stx * liveRate).toFixed(2) : "");
+      const amt = parseFloat(tokenAmount) || 0;
+      setNgnAmount(amt > 0 ? (amt * liveRate).toFixed(2) : "");
     } else {
       const ngn = parseFloat(ngnAmount) || 0;
-      setStxAmount(ngn > 0 ? (ngn * NGN_TO_STX_RATE).toFixed(4) : "");
+      setTokenAmount(ngn > 0 ? (ngn / liveRate).toFixed(4) : "");
     }
-  }, [tick, stxAmount, ngnAmount, mode]);
+  }, [tick, mode, selectedToken]);
 
-  const handleSTXChange = (val: string) => {
-    setStxAmount(val);
-    const stx = parseFloat(val) || 0;
-    setNgnAmount(stx > 0 ? (stx * liveRate).toFixed(2) : "");
+  const handleTokenAmt = (v: string) => {
+    setTokenAmount(v);
+    const amt = parseFloat(v) || 0;
+    setNgnAmount(amt > 0 ? (amt * liveRate).toFixed(2) : "");
   };
 
-  const handleNGNChange = (val: string) => {
-    setNgnAmount(val);
-    const ngn = parseFloat(val) || 0;
-    setStxAmount(ngn > 0 ? (ngn / liveRate).toFixed(4) : "");
+  const handleNgnAmt = (v: string) => {
+    setNgnAmount(v);
+    const ngn = parseFloat(v) || 0;
+    setTokenAmount(ngn > 0 ? (ngn / liveRate).toFixed(4) : "");
   };
 
   const handleConvert = () => {
+    if (!tokenAmount || parseFloat(tokenAmount) <= 0) return;
     setStatus("loading");
-    setTimeout(() => setStatus("success"), 1800);
-    setTimeout(() => setStatus("idle"), 4000);
+    // Spawn particles
+    const btn = btnRef.current;
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      const newParticles = Array.from({ length: 12 }, (_, i) => ({
+        id: Date.now() + i,
+        x: Math.random() * rect.width,
+        y: Math.random() * rect.height,
+        size: Math.random() * 6 + 3,
+        speed: Math.random() * 2 + 1,
+        opacity: 1,
+      }));
+      setParticles(newParticles);
+    }
+    setTimeout(() => { setStatus("success"); setParticles([]); }, 1800);
+    setTimeout(() => setStatus("idle"), 4200);
   };
 
-  const fee = mode === "sell"
-    ? (parseFloat(stxAmount) || 0) * liveRate * 0.005
-    : (parseFloat(ngnAmount) || 0) * 0.005;
+  const quickAmounts = ["50", "100", "500", "1000"];
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0a0e1a",
-        fontFamily: "'Sora', sans-serif",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px 16px",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Google font import via style tag */}
+    <div style={{ minHeight: "100vh", background: "#070B14", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "24px 16px 40px", position: "relative", overflowX: "hidden", overflowY: "auto" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
-
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .glow-orb {
-          position: absolute;
-          border-radius: 50%;
-          filter: blur(80px);
-          opacity: 0.18;
-          pointer-events: none;
+        :root {
+          --token-color: ${token.color};
+          --token-glow: ${token.glow};
         }
 
+        body { background: #070B14; }
+
+        /* Animated grid background */
+        .grid-bg {
+          position: absolute; inset: 0; pointer-events: none; z-index: 0;
+          background-image:
+            linear-gradient(rgba(255,107,0,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,107,0,0.03) 1px, transparent 1px);
+          background-size: 40px 40px;
+        }
+
+        .orb {
+          position: absolute; border-radius: 50%; filter: blur(100px);
+          pointer-events: none; z-index: 0;
+        }
+
+        .wrapper {
+          position: relative; z-index: 10;
+          width: 100%; max-width: 460px;
+          display: flex; flex-direction: column; gap: 12px;
+          margin-top: 8px;
+        }
+
+        /* Top nav */
+        .topbar {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 4px; margin-bottom: 4px;
+        }
+
+        .logo {
+          display: flex; align-items: center; gap: 10px;
+        }
+
+        .logo-mark {
+          width: 34px; height: 34px; border-radius: 10px;
+          background: linear-gradient(135deg, #FF6B00, #FF9500);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 16px; font-weight: 800; color: #fff;
+          box-shadow: 0 4px 16px #FF6B0055;
+        }
+
+        .logo-text { font-size: 18px; font-weight: 700; color: #F1F5F9; letter-spacing: -0.5px; }
+        .logo-sub { font-size: 11px; color: #3A4A6A; letter-spacing: 0.5px; }
+
+        .network-pill {
+          display: flex; align-items: center; gap: 6px;
+          background: #0F1829; border: 1px solid #1E2D45;
+          border-radius: 20px; padding: 6px 12px;
+          font-size: 11px; color: #4A6A8A; font-weight: 500;
+        }
+
+        /* Main card */
         .card {
-          background: #111827;
-          border: 1px solid #1f2d45;
-          border-radius: 24px;
-          padding: 32px;
-          width: 100%;
-          max-width: 440px;
+          background: linear-gradient(145deg, #0F1829 0%, #0D1520 100%);
+          border: 1px solid #1A2840;
+          border-radius: 28px;
+          padding: 28px;
           position: relative;
-          z-index: 10;
-          box-shadow: 0 0 60px rgba(255, 107, 0, 0.05), 0 24px 48px rgba(0,0,0,0.5);
+          overflow: visible;
+          box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 32px 64px rgba(0,0,0,0.6);
         }
 
-        .tab {
-          flex: 1;
-          padding: 10px;
-          border: none;
-          border-radius: 12px;
-          cursor: pointer;
-          font-family: 'Sora', sans-serif;
-          font-size: 14px;
-          font-weight: 600;
-          transition: all 0.2s;
+        .card::before {
+          content: '';
+          position: absolute; top: 0; left: 0; right: 0; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(255,107,0,0.3), transparent);
         }
 
-        .tab-active {
-          background: #ff6b00;
-          color: #fff;
-          box-shadow: 0 4px 16px rgba(255,107,0,0.35);
+        /* Token pills */
+        .token-pills {
+          display: flex; gap: 8px; margin-bottom: 24px;
         }
 
-        .tab-inactive {
-          background: transparent;
-          color: #6b7a99;
+        .token-pill {
+          flex: 1; padding: 10px 14px; border-radius: 14px; border: 1px solid #1A2840;
+          cursor: pointer; font-family: 'DM Sans', sans-serif;
+          font-size: 13px; font-weight: 600; transition: all 0.25s;
+          display: flex; align-items: center; gap: 8px;
+          background: #0A1020;
+          color: #4A6A8A;
         }
 
-        .input-wrap {
-          background: #0d1625;
-          border: 1px solid #1f2d45;
-          border-radius: 14px;
-          padding: 16px 20px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          transition: border-color 0.2s;
+        .token-pill:hover { border-color: #2A3A5A; color: #8A9AB8; }
+
+        .token-pill-active {
+          border-color: var(--token-color) !important;
+          background: color-mix(in srgb, var(--token-color) 8%, #0A1020) !important;
+          color: #F1F5F9 !important;
+          box-shadow: 0 0 20px var(--token-glow);
         }
 
-        .input-wrap:focus-within {
-          border-color: #ff6b00;
+        .pill-icon {
+          width: 24px; height: 24px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
         }
+
+        .pill-change { margin-left: auto; font-size: 11px; }
+        .pill-change-pos { color: #22C55E; }
+        .pill-change-neg { color: #EF4444; }
+
+        /* Mode switch */
+        .mode-switch {
+          display: flex; background: #080E1A; border-radius: 14px;
+          padding: 4px; margin-bottom: 20px; border: 1px solid #1A2840;
+        }
+
+        .mode-btn {
+          flex: 1; padding: 10px; border: none; border-radius: 10px;
+          cursor: pointer; font-family: 'DM Sans', sans-serif;
+          font-size: 13px; font-weight: 600; transition: all 0.2s;
+          background: transparent; color: #3A5070;
+        }
+
+        .mode-btn-sell-active { background: #FF6B00; color: #fff; box-shadow: 0 4px 12px #FF6B0044; }
+        .mode-btn-buy-active { background: #22C55E; color: #fff; box-shadow: 0 4px 12px #22C55E44; }
+
+        /* Input fields */
+        .field-label {
+          font-size: 10px; color: #3A5070; text-transform: uppercase;
+          letter-spacing: 1.2px; margin-bottom: 8px; font-weight: 600;
+        }
+
+        .input-box {
+          background: #080E1A; border-radius: 16px;
+          border: 1.5px solid #1A2840;
+          padding: 14px 16px;
+          display: flex; align-items: center; gap: 12px;
+          transition: all 0.2s; position: relative;
+        }
+
+        .input-box-focused { border-color: var(--token-color); box-shadow: 0 0 0 3px var(--token-glow); }
+        .input-box-ngn-focused { border-color: #22C55E; box-shadow: 0 0 0 3px #22C55E22; }
 
         .token-badge {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          background: #1a2540;
-          border-radius: 8px;
-          padding: 6px 10px;
-          white-space: nowrap;
-          font-size: 13px;
-          font-weight: 600;
-          color: #e2e8f0;
+          display: flex; align-items: center; gap: 7px;
+          background: #0F1829; border: 1px solid #1A2840;
+          border-radius: 10px; padding: 7px 10px;
+          white-space: nowrap; flex-shrink: 0;
         }
+
+        .badge-icon {
+          width: 22px; height: 22px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: 700; color: #fff;
+        }
+
+        .badge-label { font-size: 12px; font-weight: 600; color: #C8D8E8; }
 
         .amount-input {
-          flex: 1;
-          background: transparent;
-          border: none;
-          outline: none;
-          font-family: 'Space Mono', monospace;
-          font-size: 20px;
-          font-weight: 700;
-          color: #f1f5f9;
-          width: 100%;
-          min-width: 0;
+          flex: 1; background: transparent; border: none; outline: none;
+          font-family: 'DM Mono', monospace; font-size: 22px;
+          font-weight: 500; color: #F1F5F9; width: 100%; min-width: 0;
+        }
+        .amount-input::placeholder { color: #1E2D45; }
+        .amount-input-ngn { color: #22C55E !important; }
+
+        .input-usd-hint {
+          font-size: 11px; color: #2A4060; font-family: 'DM Mono', monospace;
+          white-space: nowrap;
         }
 
-        .amount-input::placeholder { color: #2a3a58; }
-
-        .swap-btn {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          background: #1a2540;
-          border: 1px solid #1f2d45;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto;
-          transition: all 0.2s;
-          color: #6b7a99;
-        }
-        .swap-btn:hover { background: #ff6b00; color: #fff; border-color: #ff6b00; }
-
-        .convert-btn {
-          width: 100%;
-          padding: 16px;
-          border-radius: 14px;
-          border: none;
-          cursor: pointer;
-          font-family: 'Sora', sans-serif;
-          font-size: 16px;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          transition: all 0.2s;
-          position: relative;
-          overflow: hidden;
+        /* Quick amounts */
+        .quick-amounts {
+          display: flex; gap: 6px; margin-top: 8px;
         }
 
-        .convert-btn-idle {
-          background: linear-gradient(135deg, #ff6b00, #ff9500);
-          color: #fff;
-          box-shadow: 0 8px 24px rgba(255,107,0,0.4);
+        .quick-btn {
+          flex: 1; padding: 6px; border-radius: 8px;
+          border: 1px solid #1A2840; background: #080E1A;
+          font-family: 'DM Sans', sans-serif; font-size: 11px;
+          font-weight: 600; color: #3A5070; cursor: pointer;
+          transition: all 0.15s;
+        }
+        .quick-btn:hover { border-color: var(--token-color); color: var(--token-color); }
+
+        /* Arrow */
+        .arrow-wrap {
+          display: flex; align-items: center; justify-content: center;
+          margin: 12px 0; position: relative;
         }
 
-        .convert-btn-idle:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 12px 32px rgba(255,107,0,0.5);
+        .arrow-btn {
+          width: 36px; height: 36px; border-radius: 50%;
+          background: #0F1829; border: 1.5px solid #1A2840;
+          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          color: #3A5070; transition: all 0.2s; z-index: 1;
+        }
+        .arrow-btn:hover { background: #FF6B00; color: #fff; border-color: #FF6B00; transform: rotate(180deg); }
+
+        .arrow-line {
+          position: absolute; left: 0; right: 0; height: 1px;
+          background: linear-gradient(90deg, transparent, #1A2840, transparent);
         }
 
-        .convert-btn-loading {
-          background: #1a2540;
-          color: #6b7a99;
-          cursor: not-allowed;
+        /* Summary strip */
+        .summary {
+          background: #080E1A; border: 1px solid #1A2840;
+          border-radius: 14px; padding: 14px 16px; margin-bottom: 18px;
         }
 
-        .convert-btn-success {
-          background: linear-gradient(135deg, #00c853, #69f0ae);
-          color: #0a0e1a;
-          box-shadow: 0 8px 24px rgba(0,200,83,0.35);
+        .summary-row {
+          display: flex; justify-content: space-between; align-items: center;
+          font-size: 12px; color: #3A5070; padding: 3px 0;
         }
 
-        .rate-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: 12px;
-          color: #4a5a7a;
-          padding: 4px 0;
+        .summary-val {
+          font-family: 'DM Mono', monospace; font-size: 11px; color: #6A8AAA;
         }
 
-        .rate-val { color: #94a3b8; font-family: 'Space Mono', monospace; font-size: 11px; }
+        .summary-total {
+          border-top: 1px solid #1A2840; margin-top: 8px; padding-top: 8px;
+          font-weight: 600; color: #C8D8E8 !important;
+        }
+
+        .summary-total .summary-val { color: #22C55E !important; font-size: 13px !important; }
 
         .live-dot {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #00c853;
-          display: inline-block;
-          animation: pulse 1.5s infinite;
-          margin-right: 4px;
+          width: 5px; height: 5px; border-radius: 50%;
+          background: #22C55E; display: inline-block;
+          animation: blink 1.8s ease-in-out infinite; margin-right: 4px;
         }
 
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.5; transform: scale(0.7); }
+        /* Convert button */
+        .convert-btn {
+          width: 100%; padding: 17px; border-radius: 16px; border: none;
+          cursor: pointer; font-family: 'DM Sans', sans-serif;
+          font-size: 15px; font-weight: 700; letter-spacing: 0.3px;
+          transition: all 0.25s; position: relative; overflow: hidden;
         }
 
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+        .convert-idle {
+          background: linear-gradient(135deg, #FF6B00 0%, #FF9A00 100%);
+          color: #fff; box-shadow: 0 8px 28px #FF6B0050;
+        }
+        .convert-idle:hover { transform: translateY(-2px); box-shadow: 0 14px 36px #FF6B0060; }
+        .convert-idle:active { transform: translateY(0); }
+
+        .convert-buy-idle {
+          background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+          color: #fff; box-shadow: 0 8px 28px #22C55E40;
+        }
+        .convert-buy-idle:hover { transform: translateY(-2px); box-shadow: 0 14px 36px #22C55E50; }
+
+        .convert-loading { background: #0F1829; color: #3A5070; cursor: not-allowed; border: 1px solid #1A2840; }
+
+        .convert-success {
+          background: linear-gradient(135deg, #22C55E 0%, #86EFAC 100%);
+          color: #052e16; box-shadow: 0 8px 28px #22C55E50;
         }
 
+        /* Spinner */
         .spinner {
-          width: 18px;
-          height: 18px;
-          border: 2px solid rgba(255,255,255,0.2);
-          border-top-color: #fff;
-          border-radius: 50%;
+          width: 16px; height: 16px;
+          border: 2px solid rgba(255,255,255,0.15);
+          border-top-color: #6A8AAA; border-radius: 50%;
           animation: spin 0.7s linear infinite;
-          display: inline-block;
-          vertical-align: middle;
-          margin-right: 8px;
+          display: inline-block; vertical-align: middle; margin-right: 8px;
         }
 
-        .divider {
-          height: 1px;
-          background: #1f2d45;
-          margin: 20px 0;
+        /* History card */
+        .history-card {
+          background: #0F1829; border: 1px solid #1A2840;
+          border-radius: 20px; padding: 20px; overflow: hidden;
+          transition: all 0.3s;
+        }
+
+        .history-header {
+          display: flex; justify-content: space-between; align-items: center;
+          margin-bottom: 14px; cursor: pointer;
+        }
+
+        .history-title { font-size: 12px; font-weight: 600; color: #4A6A8A; text-transform: uppercase; letter-spacing: 1px; }
+
+        .tx-row {
+          display: flex; align-items: center; gap: 12px;
+          padding: 10px 0; border-bottom: 1px solid #0A1020;
+        }
+        .tx-row:last-child { border-bottom: none; }
+
+        .tx-icon {
+          width: 32px; height: 32px; border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 14px; flex-shrink: 0;
+        }
+
+        .tx-sell { background: #FF6B0015; }
+        .tx-buy { background: #22C55E15; }
+
+        .tx-info { flex: 1; }
+        .tx-title { font-size: 12px; font-weight: 600; color: #8A9AB8; }
+        .tx-sub { font-size: 10px; color: #3A5070; margin-top: 1px; }
+        .tx-amount { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; color: #22C55E; text-align: right; }
+        .tx-time { font-size: 10px; color: #3A5070; text-align: right; margin-top: 2px; }
+
+        /* Trust badges */
+        .badges {
+          display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px;
+        }
+        .badge {
+          display: flex; align-items: center; gap: 4px;
+          font-size: 10px; color: #2A4060; font-weight: 500;
+        }
+
+        @keyframes blink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes floatUp {
+          0% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-60px) scale(0); }
+        }
+        @keyframes betaPulse {
+          0%, 100% { box-shadow: 0 0 12px #7C3AED33; }
+          50% { box-shadow: 0 0 20px #7C3AED66; }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide-in { animation: slideIn 0.3s ease forwards; }
+
+        .shimmer {
+          background: linear-gradient(90deg, #1A2840 25%, #2A3A5A 50%, #1A2840 75%);
+          background-size: 200% 100%;
+          animation: shimmerAnim 1.5s infinite;
+        }
+
+        @keyframes shimmerAnim {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
       `}</style>
 
-      {/* Background orbs */}
-      <div className="glow-orb" style={{ width: 400, height: 400, background: "#ff6b00", top: -100, right: -100 }} />
-      <div className="glow-orb" style={{ width: 300, height: 300, background: "#6c63ff", bottom: -50, left: -80 }} />
+      {/* Background */}
+      <div className="grid-bg" />
+      <div className="orb" style={{ width: 500, height: 500, background: token.color, opacity: 0.06, top: -150, right: -150 }} />
+      <div className="orb" style={{ width: 400, height: 400, background: "#2775CA", opacity: 0.05, bottom: -100, left: -150 }} />
+      <div className="orb" style={{ width: 200, height: 200, background: "#22C55E", opacity: 0.04, top: "40%", left: "10%" }} />
 
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 32, position: "relative", zIndex: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 8 }}>
+      <div className="wrapper">
+        {/* Topbar */}
+        <div className="topbar">
+          <div className="logo">
+            <div className="logo-mark">S</div>
+            <div>
+              <div className="logo-text">StackSwap</div>
+              <div className="logo-sub">STACKS · NAIRA</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: "linear-gradient(135deg, #7C3AED22, #A855F722)",
+              border: "1px solid #7C3AED55",
+              borderRadius: 20, padding: "5px 10px",
+              fontSize: 10, fontWeight: 700, color: "#C084FC",
+              letterSpacing: "1.5px", textTransform: "uppercase",
+              animation: "betaPulse 3s ease-in-out infinite",
+            }}>
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%", background: "#A855F7",
+                display: "inline-block", animation: "blink 1.8s ease-in-out infinite",
+                marginRight: 2,
+              }} />
+              Beta
+            </div>
+            <div className="network-pill">
+              <span className="live-dot" />
+              Mainnet
+            </div>
+          </div>
+        </div>
+
+        {/* Beta banner */}
+        <div style={{
+          background: "linear-gradient(135deg, #7C3AED11, #A855F711)",
+          border: "1px solid #7C3AED33",
+          borderRadius: 14, padding: "10px 16px",
+          display: "flex", alignItems: "center", gap: 10,
+          fontSize: 12,
+        }}>
+          <span style={{ fontSize: 16 }}>🧪</span>
+          <div>
+            <span style={{ color: "#C084FC", fontWeight: 600 }}>Beta Mode — </span>
+            <span style={{ color: "#5A5A8A" }}>Features may change. Use small amounts while we test.</span>
+          </div>
           <div style={{
-            width: 36, height: 36, borderRadius: "50%",
-            background: "linear-gradient(135deg, #ff6b00, #ff9500)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 18, fontWeight: 700, color: "#fff"
-          }}>S</div>
-          <span style={{ fontSize: 22, fontWeight: 700, color: "#f1f5f9", letterSpacing: "-0.5px" }}>StackSwap</span>
-        </div>
-        <p style={{ color: "#4a5a7a", fontSize: 13 }}>Convert STX ↔ Naira instantly</p>
-      </div>
-
-      <div className="card">
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: 8, background: "#0d1625", borderRadius: 14, padding: 6, marginBottom: 24 }}>
-          <button className={`tab ${mode === "sell" ? "tab-active" : "tab-inactive"}`} onClick={() => setMode("sell")}>
-            Sell STX → NGN
-          </button>
-          <button className={`tab ${mode === "buy" ? "tab-active" : "tab-inactive"}`} onClick={() => setMode("buy")}>
-            Buy STX ← NGN
-          </button>
+            marginLeft: "auto", fontSize: 10, color: "#7C3AED",
+            background: "#7C3AED22", borderRadius: 6, padding: "3px 8px",
+            fontWeight: 600, whiteSpace: "nowrap",
+          }}>v0.1.0</div>
         </div>
 
-        {/* STX Input */}
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 11, color: "#4a5a7a", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>
-            {mode === "sell" ? "You Send" : "You Receive"}
-          </label>
-          <div className="input-wrap">
-            <div className="token-badge">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" fill="#ff6b00" opacity="0.2"/>
-                <text x="12" y="16" textAnchor="middle" fill="#ff6b00" fontSize="10" fontWeight="bold">S</text>
+        {/* Main card */}
+        <div className="card slide-in">
+          {/* Token selection */}
+          <div className="token-pills">
+            {TOKENS.map((t) => (
+              <button
+                key={t.id}
+                className={`token-pill ${selectedToken === t.id ? "token-pill-active" : ""}`}
+                style={selectedToken === t.id ? { ["--token-color" as any]: t.color, ["--token-glow" as any]: t.glow } : {}}
+                onClick={() => { setSelectedToken(t.id); setTokenAmount("100"); setNgnAmount(""); }}
+              >
+                <div className="pill-icon" style={{ background: t.color }}>{t.icon}</div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{t.symbol}</div>
+                  <div style={{ fontSize: 10, color: "#3A5070" }}>{t.label}</div>
+                </div>
+                <span className={`pill-change ${t.change >= 0 ? "pill-change-pos" : "pill-change-neg"}`}>
+                  {t.change >= 0 ? "▲" : "▼"} {Math.abs(t.change)}%
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Mode switch */}
+          <div className="mode-switch">
+            <button
+              className={`mode-btn ${mode === "sell" ? "mode-btn-sell-active" : ""}`}
+              onClick={() => setMode("sell")}
+            >
+              ↑ Sell {token.symbol}
+            </button>
+            <button
+              className={`mode-btn ${mode === "buy" ? "mode-btn-buy-active" : ""}`}
+              onClick={() => setMode("buy")}
+            >
+              ↓ Buy {token.symbol}
+            </button>
+          </div>
+
+          {/* Token amount input */}
+          <div style={{ marginBottom: 6 }}>
+            <div className="field-label">{mode === "sell" ? "You're Sending" : "You're Receiving"}</div>
+            <div className={`input-box ${focused === "token" ? "input-box-focused" : ""}`}>
+              <div className="token-badge">
+                <div className="badge-icon" style={{ background: token.color }}>{token.icon}</div>
+                <span className="badge-label">{token.symbol}</span>
+              </div>
+              <input
+                className="amount-input"
+                type="number"
+                placeholder="0.00"
+                value={tokenAmount}
+                onChange={(e) => handleTokenAmt(e.target.value)}
+                onFocus={() => setFocused("token")}
+                onBlur={() => setFocused(null)}
+              />
+              <div className="input-usd-hint">
+                ≈ {formatNGN((parseFloat(tokenAmount) || 0) * liveRate)}
+              </div>
+            </div>
+          </div>
+
+          {/* Quick amounts */}
+          <div className="quick-amounts" style={{ ["--token-color" as any]: token.color }}>
+            {quickAmounts.map((amt) => (
+              <button key={amt} className="quick-btn" onClick={() => handleTokenAmt(amt)}>
+                {amt}
+              </button>
+            ))}
+            <button className="quick-btn" onClick={() => handleTokenAmt("5000")}>MAX</button>
+          </div>
+
+          {/* Arrow */}
+          <div className="arrow-wrap">
+            <div className="arrow-line" />
+            <button className="arrow-btn" onClick={() => setMode(mode === "sell" ? "buy" : "sell")}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
               </svg>
-              STX
-            </div>
-            <input
-              className="amount-input"
-              type="number"
-              placeholder="0.0000"
-              value={stxAmount}
-              onChange={(e) => handleSTXChange(e.target.value)}
-            />
+            </button>
           </div>
-        </div>
 
-        {/* Swap icon */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "12px 0" }}>
-          <button className="swap-btn" onClick={() => setMode(mode === "sell" ? "buy" : "sell")}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
-            </svg>
+          {/* NGN amount */}
+          <div style={{ marginBottom: 20 }}>
+            <div className="field-label">{mode === "sell" ? "You're Receiving" : "You're Sending"}</div>
+            <div className={`input-box ${focused === "ngn" ? "input-box-ngn-focused" : ""}`}>
+              <div className="token-badge">
+                <div className="badge-icon" style={{ background: "#22C55E", fontSize: 13 }}>₦</div>
+                <span className="badge-label">NGN</span>
+              </div>
+              <input
+                className="amount-input amount-input-ngn"
+                type="number"
+                placeholder="0.00"
+                value={ngnAmount}
+                onChange={(e) => handleNgnAmt(e.target.value)}
+                onFocus={() => setFocused("ngn")}
+                onBlur={() => setFocused(null)}
+              />
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="summary">
+            <div className="summary-row">
+              <span><span className="live-dot" />Rate</span>
+              <span className="summary-val">1 {token.symbol} = <AnimatedNumber value={liveRate} prefix="₦" /></span>
+            </div>
+            <div className="summary-row" style={{ marginTop: 4 }}>
+              <span>Network fee (0.5%)</span>
+              <span className="summary-val">- {formatNGN(fee)}</span>
+            </div>
+            <div className="summary-row" style={{ marginTop: 4 }}>
+              <span>Settlement</span>
+              <span className="summary-val" style={{ color: "#22C55E" }}>~30 sec</span>
+            </div>
+            <div className="summary-row summary-total">
+              <span>You {mode === "sell" ? "get" : "pay"}</span>
+              <span className="summary-val">
+                {mode === "sell" ? formatNGN(youGet) : `${tokenAmount} ${token.symbol}`}
+              </span>
+            </div>
+          </div>
+
+          {/* CTA button */}
+          <button
+            ref={btnRef}
+            className={`convert-btn ${
+              status === "idle"
+                ? mode === "sell" ? "convert-idle" : "convert-buy-idle"
+                : status === "loading"
+                ? "convert-loading"
+                : "convert-success"
+            }`}
+            onClick={handleConvert}
+            disabled={status !== "idle"}
+            style={{ ["--token-color" as any]: token.color }}
+          >
+            {status === "idle" && (
+              mode === "sell"
+                ? `⚡ Convert ${token.symbol} → Naira`
+                : `⚡ Buy ${token.symbol} with Naira`
+            )}
+            {status === "loading" && <><span className="spinner" />Processing transaction…</>}
+            {status === "success" && "✅ Conversion Complete!"}
           </button>
+
+          <p style={{ textAlign: "center", fontSize: 10, color: "#1E2D45", marginTop: 14, lineHeight: 1.6 }}>
+            Powered by Stacks L2 · Secured by Bitcoin · KYC required above ₦500,000
+          </p>
         </div>
 
-        {/* NGN Output */}
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 11, color: "#4a5a7a", textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 8 }}>
-            {mode === "sell" ? "You Receive" : "You Send"}
-          </label>
-          <div className="input-wrap">
-            <div className="token-badge">
-              <span style={{ color: "#00c853", fontSize: 14 }}>₦</span>
-              NGN
+        {/* Recent transactions */}
+        <div className="history-card">
+          <div className="history-header" onClick={() => setShowHistory(!showHistory)}>
+            <span className="history-title">Recent Transactions</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A5070" strokeWidth="2"
+              style={{ transform: showHistory ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </div>
+          {showHistory && (
+            <div className="slide-in">
+              {recentTx.map((tx, i) => (
+                <div key={i} className="tx-row">
+                  <div className={`tx-icon ${tx.type === "sell" ? "tx-sell" : "tx-buy"}`}>
+                    {tx.type === "sell" ? "↑" : "↓"}
+                  </div>
+                  <div className="tx-info">
+                    <div className="tx-title">{tx.type === "sell" ? "Sold" : "Bought"} {tx.amount} {tx.token}</div>
+                    <div className="tx-sub">Confirmed · Stacks</div>
+                  </div>
+                  <div>
+                    <div className="tx-amount">₦{tx.ngn}</div>
+                    <div className="tx-time">{tx.time}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <input
-              className="amount-input"
-              type="number"
-              placeholder="0.00"
-              value={ngnAmount}
-              onChange={(e) => handleNGNChange(e.target.value)}
-              style={{ color: "#00c853" }}
-            />
-          </div>
+          )}
+          {!showHistory && (
+            <div style={{ display: "flex", gap: 6 }}>
+              {recentTx.slice(0, 3).map((tx, i) => (
+                <div key={i} style={{
+                  flex: 1, background: "#080E1A", borderRadius: 10, padding: "8px 10px",
+                  fontSize: 10, color: "#3A5070", textAlign: "center"
+                }}>
+                  <div style={{ color: tx.type === "sell" ? "#FF6B00" : "#22C55E", fontWeight: 600, marginBottom: 2 }}>
+                    {tx.type === "sell" ? "↑" : "↓"} {tx.token}
+                  </div>
+                  <div style={{ fontFamily: "'DM Mono', monospace", color: "#4A6A8A" }}>{tx.amount}</div>
+                  <div>{tx.time}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Rate info */}
-        <div style={{ background: "#0d1625", borderRadius: 12, padding: "14px 16px", marginBottom: 20 }}>
-          <div className="rate-row">
-            <span><span className="live-dot" />Live Rate</span>
-            <span className="rate-val">1 STX = {formatNGN(liveRate)}</span>
-          </div>
-          <div className="rate-row" style={{ marginTop: 6 }}>
-            <span>Network fee (0.5%)</span>
-            <span className="rate-val">≈ {formatNGN(fee)}</span>
-          </div>
-          <div className="rate-row" style={{ marginTop: 6 }}>
-            <span>Settlement</span>
-            <span className="rate-val" style={{ color: "#00c853" }}>~30 seconds</span>
-          </div>
+        {/* Trust badges */}
+        <div className="badges">
+          {["Non-custodial", "Bitcoin Secured", "Instant NGN", "CBN Compliant"].map((b) => (
+            <div key={b} className="badge">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#22C55E" opacity="0.6">
+                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {b}
+            </div>
+          ))}
         </div>
-
-        {/* Convert Button */}
-        <button
-          className={`convert-btn ${status === "idle" ? "convert-btn-idle" : status === "loading" ? "convert-btn-loading" : "convert-btn-success"}`}
-          onClick={handleConvert}
-          disabled={status !== "idle"}
-        >
-          {status === "idle" && (mode === "sell" ? "⚡ Convert STX to Naira" : "⚡ Buy STX with Naira")}
-          {status === "loading" && <><span className="spinner" />Processing…</>}
-          {status === "success" && "✓ Conversion Successful!"}
-        </button>
-
-        {/* Footer note */}
-        <p style={{ textAlign: "center", fontSize: 11, color: "#2a3a58", marginTop: 16 }}>
-          Secured by Stacks blockchain · KYC required for &gt;₦500,000
-        </p>
-      </div>
-
-      {/* Bottom trust badges */}
-      <div style={{ display: "flex", gap: 20, marginTop: 24, position: "relative", zIndex: 10 }}>
-        {["Non-custodial", "Instant NGN", "CBN Compliant"].map((label) => (
-          <div key={label} style={{ fontSize: 11, color: "#2a3a58", display: "flex", alignItems: "center", gap: 4 }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="#ff6b00"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            {label}
-          </div>
-        ))}
       </div>
     </div>
   );
