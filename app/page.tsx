@@ -1,726 +1,611 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, CSSProperties } from "react";
 
-const TOKENS = [
-  { id: "STX", label: "Stacks", symbol: "STX", color: "#FF6B00", glow: "#FF6B0044", rate: 1847.35, icon: "S", change: +2.4 },
-  { id: "USDC", label: "USD Coin", symbol: "USDC", color: "#2775CA", glow: "#2775CA44", rate: 1620.5, icon: "$", change: +0.1 },
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Registrant {
+  name: string;
+  phone: string;
+  track: string;
+  location: string;
+  level: string;
+  twitter: string;
+}
+
+interface Template {
+  title: string;
+  emoji: string;
+  text: string;
+}
+
+interface TrackStyle {
+  bg: string;
+  color: string;
+  border: string;
+}
+
+interface LogEntry {
+  text: string;
+  type: "ok" | "err" | "info";
+}
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+
+const REGISTRANTS: Registrant[] = [
+  {name:"Maebi Maclean",phone:"08029373120",track:"UI/UX",location:"Futa",level:"Beginner",twitter:"@horiznmac"},
+  {name:"Vivian Okosun",phone:"09079839008",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"@viv_ifox"},
+  {name:"Gabriel Oyinlola",phone:"09136287397",track:"Web Dev",location:"Abeokuta",level:"Intermediate",twitter:"Oyinlola Gabriel"},
+  {name:"Ambrose Joseph Jere",phone:"08148708918",track:"Blockchain",location:"Jos",level:"Beginner",twitter:"@jere45updates"},
+  {name:"Stephen Dauda",phone:"09064601196",track:"Blockchain",location:"Online",level:"Beginner",twitter:"Chimiofweb3"},
+  {name:"Bello Habeebullah Adedipupo",phone:"08137811585",track:"UI/UX",location:"Online",level:"Beginner",twitter:"BeLLoXXii"},
+  {name:"Njemurim Edem",phone:"09154495001",track:"Blockchain",location:"Online",level:"Intermediate",twitter:"Njemurim."},
+  {name:"Oke Donald",phone:"09064286190",track:"UI/UX",location:"Lagos",level:"Beginner",twitter:"Donald64434oke"},
+  {name:"Goodness Ikubuwaje",phone:"08147494896",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"xxmonero"},
+  {name:"Imadiyi Iguodala Joel",phone:"09060884117",track:"Blockchain",location:"Futa",level:"Intermediate",twitter:"Cryptomanic137"},
+  {name:"Osakwe Samuel Oluwadarasimi",phone:"08122559307",track:"Web Dev",location:"Ibadan",level:"Beginner",twitter:"Osakwe Samuel"},
+  {name:"Gabriel Chimezie Nwogbo",phone:"09033145602",track:"Blockchain",location:"Online",level:"Beginner",twitter:"@skylordmiles"},
+  {name:"Ajibola Michael",phone:"08136878310",track:"Blockchain",location:"Futa",level:"Advanced",twitter:"AjibolaMik658"},
+  {name:"Peace Ayinla",phone:"08148746237",track:"UI/UX",location:"Futa",level:"Beginner",twitter:"@AyinlaGrafix"},
+  {name:"Emmanuel Omolafe Omotosho",phone:"07081889966",track:"Web Dev",location:"Akungba",level:"Beginner",twitter:"Omolafe Emmanuel"},
+  {name:"Okpare Ufuoma Peace",phone:"09071141064",track:"Web Dev",location:"Online",level:"Beginner",twitter:"@OkpareU"},
+  {name:"Taofeeq Mukhtar Akorede",phone:"07030130058",track:"Blockchain",location:"Ile Ife",level:"Intermediate",twitter:"@Smart0058"},
+  {name:"Itoro Daniel",phone:"08130312380",track:"Blockchain",location:"Virtual",level:"Intermediate",twitter:"Adiaha_aity"},
+  {name:"Patience Igwe",phone:"09033643902",track:"Blockchain",location:"Lagos",level:"Beginner",twitter:"Official_omaah_"},
+  {name:"Chukwu Judith",phone:"08057219649",track:"Web Dev",location:"Abuja",level:"Advanced",twitter:"Judyyliah"},
+  {name:"Nwachukwu Esther",phone:"09024409762",track:"Blockchain",location:"Abuja",level:"Beginner",twitter:"Es_ty101"},
+  {name:"Edu Aisha",phone:"09011394495",track:"UI/UX",location:"Lagos",level:"Intermediate",twitter:"Eniola."},
+  {name:"Oremei Akande",phone:"08028402202",track:"Blockchain",location:"Ibadan",level:"Advanced",twitter:"@OremeiPraise"},
+  {name:"Eteng Obaseoyi Ikpi",phone:"09161970780",track:"UI/UX",location:"Calabar",level:"Beginner",twitter:"Dolph club"},
+  {name:"Emmanuella Onuekwutu",phone:"09160087726",track:"Web Dev",location:"Lagos",level:"Beginner",twitter:"@Onuekwutunam"},
+  {name:"Fajimi Abdulsamad Ayotomiwa",phone:"08169571781",track:"Blockchain",location:"Oyo State",level:"Intermediate",twitter:"Phajbaba001"},
+  {name:"Abdulkarim Naja'atu",phone:"09138890055",track:"Blockchain",location:"Abuja",level:"Beginner",twitter:"atu_naja8946"},
+  {name:"Olubusola Odunuga-Adebiyi",phone:"08034616060",track:"UI/UX",location:"Lagos",level:"Intermediate",twitter:"Olubusolamitee"},
+  {name:"Babatunde Timileyin",phone:"08169433210",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"@temmybabs105"},
+  {name:"Peters Juwon Esther",phone:"07017773503",track:"Blockchain",location:"Ibadan",level:"Intermediate",twitter:"@juwon_peters_"},
+  {name:"Akerele Divine",phone:"09011492036",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"D_kidART"},
+  {name:"Aiki Muhammad Olanrewaju",phone:"09155604600",track:"Web Dev",location:"Futa",level:"Beginner",twitter:"Iykelanre"},
+  {name:"Roseline Adeola Adebayo",phone:"08163209560",track:"Blockchain",location:"Ife",level:"Beginner",twitter:"@RoselineAdebay2"},
+  {name:"Michael Nkariko",phone:"08133122266",track:"Web Dev",location:"Akure",level:"Intermediate",twitter:"Michael nkariko"},
 ];
 
-function formatNGN(val: number) {
-  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 2 }).format(val);
+const DEFAULT_MSG = `Hi {{name}}! 👋
+
+I'm the founder of Web3Nova. I saw your application to learn *{{track}}* and I'm impressed by your interest! 🚀
+
+We'd love to have you join us officially — register for *Cohort III* here 👇
+
+https://web3nova.org/register
+
+Cohort III kicks off the *first week of April* — spots are limited, so register soon!
+
+See you on the inside 💪
+— Web3Nova`;
+
+const TEMPLATES: Template[] = [
+  { title:"Cohort III Invite", emoji:"🚀", text: DEFAULT_MSG },
+  { title:"Welcome", emoji:"👋", text:`Hi {{name}}! 👋\n\nWelcome to Web3Nova Bootcamp! 🚀\n\nWe're thrilled to have you on the *{{track}}* track. Get ready for an incredible journey!\n\nStay active in our community channels — see you soon! 💪` },
+  { title:"Kickoff", emoji:"🎉", text:`Hello {{name}}! 🎉\n\nOur Web3Nova Cohort officially kicks off this week!\n\nYou're registered for *{{track}}* — check your email for onboarding details and the Zoom link.\n\nSee you there! 🔥` },
+  { title:"Class Reminder", emoji:"⏰", text:`Hey {{name}}! ⏰\n\nQuick reminder — your *{{track}}* class holds today.\n\nGet your tools ready and show up to learn. Let's build something great together! 👨‍💻` },
+  { title:"Assignment", emoji:"📋", text:`Hi {{name}} 👩‍💻\n\nA new assignment just dropped for *{{track}}*!\n\nLog in to your dashboard to view details. Deadline is 72 hours — don't wait! Good luck! 🙌` },
+  { title:"Custom", emoji:"✏️", text:`` },
+];
+
+const TRACK_STYLE: Record<string, TrackStyle> = {
+  "Blockchain": { bg:"rgba(37,211,102,0.12)", color:"#25D366",  border:"rgba(37,211,102,0.25)" },
+  "Web Dev":    { bg:"rgba(168,255,120,0.1)",  color:"#a8ff78",  border:"rgba(168,255,120,0.25)" },
+  "UI/UX":      { bg:"rgba(255,209,102,0.1)",  color:"#ffd166",  border:"rgba(255,209,102,0.25)" },
+};
+
+const FILTERS: string[] = ["All","Blockchain","Web Dev","UI/UX","Futa","Online"];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalizePhone(p: string): string {
+  let n = p.replace(/\D/g, "");
+  if (n.startsWith("0")) n = "234" + n.slice(1);
+  if (!n.startsWith("234")) n = "234" + n;
+  return n;
 }
 
-function AnimatedNumber({ value, prefix = "" }: { value: number; prefix?: string }) {
-  const [display, setDisplay] = useState(value);
-  const prev = useRef(value);
-  useEffect(() => {
-    const start = prev.current;
-    const end = value;
-    const duration = 400;
-    const startTime = performance.now();
-    const frame = (now: number) => {
-      const p = Math.min((now - startTime) / duration, 1);
-      const ease = 1 - Math.pow(1 - p, 3);
-      setDisplay(start + (end - start) * ease);
-      if (p < 1) requestAnimationFrame(frame);
-      else prev.current = end;
-    };
-    requestAnimationFrame(frame);
-  }, [value]);
-  return <>{prefix}{display.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>;
+function resolveMsg(tpl: string, r: Registrant): string {
+  return tpl
+    .replace(/{{name}}/g, r.name.split(" ")[0])
+    .replace(/{{track}}/g, r.track)
+    .replace(/{{location}}/g, r.location)
+    .replace(/{{level}}/g, r.level);
 }
 
-export default function Home() {
-  const [mode, setMode] = useState<"sell" | "buy">("sell");
-  const [selectedToken, setSelectedToken] = useState("STX");
-  const [tokenAmount, setTokenAmount] = useState("100");
-  const [ngnAmount, setNgnAmount] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [tick, setTick] = useState(0);
-  const [focused, setFocused] = useState<"token" | "ngn" | null>(null);
-  const [recentTx] = useState([
-    { type: "sell", token: "STX", amount: "250", ngn: "461,837.50", time: "2m ago" },
-    { type: "buy", token: "USDC", amount: "100", ngn: "162,050.00", time: "5m ago" },
-    { type: "sell", token: "STX", amount: "50", ngn: "92,367.50", time: "11m ago" },
-  ]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [particles, setParticles] = useState<{ id: number; x: number; y: number; size: number; speed: number; opacity: number }[]>([]);
-  const btnRef = useRef<HTMLButtonElement>(null);
+function getInitials(name: string): string {
+  return name.split(" ").slice(0, 2).map((x) => x[0]).join("").toUpperCase();
+}
 
-  const token = TOKENS.find((t) => t.id === selectedToken)!;
-  const liveRate = token.rate + Math.sin(tick * 0.7) * (selectedToken === "STX" ? 14 : 2.5);
-  const ngnValue = (parseFloat(tokenAmount) || 0) * liveRate;
-  const fee = ngnValue * 0.005;
-  const youGet = ngnValue - fee;
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function Web3NovaDMTool() {
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [filter, setFilter] = useState<string>("All");
+  const [search, setSearch] = useState<string>("");
+  const [message, setMessage] = useState<string>(DEFAULT_MSG);
+  const [activeTpl, setActiveTpl] = useState<number>(0);
+  const [modal, setModal] = useState<boolean>(false);
+  const [sendIdx, setSendIdx] = useState<number>(0);
+  const [sendQueue, setSendQueue] = useState<Registrant[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [done, setDone] = useState<boolean>(false);
 
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 2500);
-    return () => clearInterval(id);
+    const link = document.createElement("link");
+    link.href = "https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
   }, []);
 
-  useEffect(() => {
-    if (mode === "sell") {
-      const amt = parseFloat(tokenAmount) || 0;
-      setNgnAmount(amt > 0 ? (amt * liveRate).toFixed(2) : "");
+  const visible = useMemo<Registrant[]>(() => {
+    return REGISTRANTS.filter((r) => {
+      const q = search.toLowerCase();
+      const matchSearch =
+        !q ||
+        r.name.toLowerCase().includes(q) ||
+        r.track.toLowerCase().includes(q) ||
+        r.location.toLowerCase().includes(q);
+      const matchFilter =
+        filter === "All" ||
+        r.track === filter ||
+        (filter === "Futa" && r.location.toLowerCase().includes("futa")) ||
+        (filter === "Online" && ["online", "virtual"].includes(r.location.toLowerCase()));
+      return matchSearch && matchFilter;
+    });
+  }, [search, filter]);
+
+  const toggle = useCallback((idx: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(idx) ? next.delete(idx) : next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = (checked: boolean) => {
+    if (checked) {
+      setSelected((prev) => {
+        const n = new Set(prev);
+        visible.forEach((r) => n.add(REGISTRANTS.indexOf(r)));
+        return n;
+      });
     } else {
-      const ngn = parseFloat(ngnAmount) || 0;
-      setTokenAmount(ngn > 0 ? (ngn / liveRate).toFixed(4) : "");
+      setSelected((prev) => {
+        const n = new Set(prev);
+        visible.forEach((r) => n.delete(REGISTRANTS.indexOf(r)));
+        return n;
+      });
     }
-  }, [tick, mode, selectedToken]);
-
-  const handleTokenAmt = (v: string) => {
-    setTokenAmount(v);
-    const amt = parseFloat(v) || 0;
-    setNgnAmount(amt > 0 ? (amt * liveRate).toFixed(2) : "");
   };
 
-  const handleNgnAmt = (v: string) => {
-    setNgnAmount(v);
-    const ngn = parseFloat(v) || 0;
-    setTokenAmount(ngn > 0 ? (ngn / liveRate).toFixed(4) : "");
+  const pickTemplate = (i: number) => {
+    setActiveTpl(i);
+    setMessage(TEMPLATES[i].text);
   };
 
-  const handleConvert = () => {
-    if (!tokenAmount || parseFloat(tokenAmount) <= 0) return;
-    setStatus("loading");
-    // Spawn particles
-    const btn = btnRef.current;
-    if (btn) {
-      const rect = btn.getBoundingClientRect();
-      const newParticles = Array.from({ length: 12 }, (_, i) => ({
-        id: Date.now() + i,
-        x: Math.random() * rect.width,
-        y: Math.random() * rect.height,
-        size: Math.random() * 6 + 3,
-        speed: Math.random() * 2 + 1,
-        opacity: 1,
-      }));
-      setParticles(newParticles);
+  const insertVar = (v: string) => {
+    const ta = document.getElementById("msg-ta") as HTMLTextAreaElement | null;
+    if (!ta) return;
+    const s = ta.selectionStart ?? message.length;
+    const e = ta.selectionEnd ?? message.length;
+    setMessage(message.slice(0, s) + v + message.slice(e));
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(s + v.length, s + v.length);
+    }, 0);
+  };
+
+  const previewContact: Registrant =
+    selected.size > 0 ? REGISTRANTS[[...selected][0]] : REGISTRANTS[0];
+  const previewMsg = message
+    ? resolveMsg(message, previewContact)
+    : "Your message will appear here…";
+
+  const canSend = selected.size > 0 && message.trim() !== "";
+
+  const openNext = (
+    queue: Registrant[],
+    idx: number,
+    currentLogs: LogEntry[]
+  ): LogEntry[] | undefined => {
+    if (idx >= queue.length) {
+      setDone(true);
+      return;
     }
-    setTimeout(() => { setStatus("success"); setParticles([]); }, 1800);
-    setTimeout(() => setStatus("idle"), 4200);
+    const r = queue[idx];
+    const phone = normalizePhone(r.phone);
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(resolveMsg(message, r))}`;
+    window.open(url, "_blank");
+    const newLog: LogEntry = { text: `✅ Opened chat for ${r.name}`, type: "ok" };
+    const updated = [...currentLogs, newLog];
+    setLogs(updated);
+    setSendIdx(idx + 1);
+    if (idx + 1 >= queue.length) setDone(true);
+    return updated;
   };
 
-  const quickAmounts = ["50", "100", "500", "1000"];
+  const startSending = () => {
+    const queue = [...selected].map((i) => REGISTRANTS[i]);
+    setSendQueue(queue);
+    setSendIdx(0);
+    setLogs([]);
+    setDone(false);
+    setModal(true);
+    openNext(queue, 0, []);
+  };
+
+  const progress = sendQueue.length
+    ? Math.round((sendIdx / sendQueue.length) * 100)
+    : 0;
+
+  // ── Styles ──────────────────────────────────────────────────────────────────
+
+  const root: CSSProperties = {
+    fontFamily: "'Syne', sans-serif",
+    background: "#080c08",
+    minHeight: "100vh",
+    color: "#e4ede4",
+    backgroundImage:
+      "radial-gradient(ellipse at 15% 25%, rgba(37,211,102,0.06) 0%, transparent 55%), radial-gradient(ellipse at 85% 75%, rgba(168,255,120,0.03) 0%, transparent 50%)",
+  };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#070B14", fontFamily: "'DM Sans', sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "24px 16px 40px", position: "relative", overflowX: "hidden", overflowY: "auto" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-          --token-color: ${token.color};
-          --token-glow: ${token.glow};
-        }
-
-        body { background: #070B14; }
-
-        /* Animated grid background */
-        .grid-bg {
-          position: absolute; inset: 0; pointer-events: none; z-index: 0;
-          background-image:
-            linear-gradient(rgba(255,107,0,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,107,0,0.03) 1px, transparent 1px);
-          background-size: 40px 40px;
-        }
-
-        .orb {
-          position: absolute; border-radius: 50%; filter: blur(100px);
-          pointer-events: none; z-index: 0;
-        }
-
-        .wrapper {
-          position: relative; z-index: 10;
-          width: 100%; max-width: 460px;
-          display: flex; flex-direction: column; gap: 12px;
-          margin-top: 8px;
-        }
-
-        /* Top nav */
-        .topbar {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 0 4px; margin-bottom: 4px;
-        }
-
-        .logo {
-          display: flex; align-items: center; gap: 10px;
-        }
-
-        .logo-mark {
-          width: 34px; height: 34px; border-radius: 10px;
-          background: linear-gradient(135deg, #FF6B00, #FF9500);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 16px; font-weight: 800; color: #fff;
-          box-shadow: 0 4px 16px #FF6B0055;
-        }
-
-        .logo-text { font-size: 18px; font-weight: 700; color: #F1F5F9; letter-spacing: -0.5px; }
-        .logo-sub { font-size: 11px; color: #3A4A6A; letter-spacing: 0.5px; }
-
-        .network-pill {
-          display: flex; align-items: center; gap: 6px;
-          background: #0F1829; border: 1px solid #1E2D45;
-          border-radius: 20px; padding: 6px 12px;
-          font-size: 11px; color: #4A6A8A; font-weight: 500;
-        }
-
-        /* Main card */
-        .card {
-          background: linear-gradient(145deg, #0F1829 0%, #0D1520 100%);
-          border: 1px solid #1A2840;
-          border-radius: 28px;
-          padding: 28px;
-          position: relative;
-          overflow: visible;
-          box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 32px 64px rgba(0,0,0,0.6);
-        }
-
-        .card::before {
-          content: '';
-          position: absolute; top: 0; left: 0; right: 0; height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(255,107,0,0.3), transparent);
-        }
-
-        /* Token pills */
-        .token-pills {
-          display: flex; gap: 8px; margin-bottom: 24px;
-        }
-
-        .token-pill {
-          flex: 1; padding: 10px 14px; border-radius: 14px; border: 1px solid #1A2840;
-          cursor: pointer; font-family: 'DM Sans', sans-serif;
-          font-size: 13px; font-weight: 600; transition: all 0.25s;
-          display: flex; align-items: center; gap: 8px;
-          background: #0A1020;
-          color: #4A6A8A;
-        }
-
-        .token-pill:hover { border-color: #2A3A5A; color: #8A9AB8; }
-
-        .token-pill-active {
-          border-color: var(--token-color) !important;
-          background: color-mix(in srgb, var(--token-color) 8%, #0A1020) !important;
-          color: #F1F5F9 !important;
-          box-shadow: 0 0 20px var(--token-glow);
-        }
-
-        .pill-icon {
-          width: 24px; height: 24px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
-        }
-
-        .pill-change { margin-left: auto; font-size: 11px; }
-        .pill-change-pos { color: #22C55E; }
-        .pill-change-neg { color: #EF4444; }
-
-        /* Mode switch */
-        .mode-switch {
-          display: flex; background: #080E1A; border-radius: 14px;
-          padding: 4px; margin-bottom: 20px; border: 1px solid #1A2840;
-        }
-
-        .mode-btn {
-          flex: 1; padding: 10px; border: none; border-radius: 10px;
-          cursor: pointer; font-family: 'DM Sans', sans-serif;
-          font-size: 13px; font-weight: 600; transition: all 0.2s;
-          background: transparent; color: #3A5070;
-        }
-
-        .mode-btn-sell-active { background: #FF6B00; color: #fff; box-shadow: 0 4px 12px #FF6B0044; }
-        .mode-btn-buy-active { background: #22C55E; color: #fff; box-shadow: 0 4px 12px #22C55E44; }
-
-        /* Input fields */
-        .field-label {
-          font-size: 10px; color: #3A5070; text-transform: uppercase;
-          letter-spacing: 1.2px; margin-bottom: 8px; font-weight: 600;
-        }
-
-        .input-box {
-          background: #080E1A; border-radius: 16px;
-          border: 1.5px solid #1A2840;
-          padding: 14px 16px;
-          display: flex; align-items: center; gap: 12px;
-          transition: all 0.2s; position: relative;
-        }
-
-        .input-box-focused { border-color: var(--token-color); box-shadow: 0 0 0 3px var(--token-glow); }
-        .input-box-ngn-focused { border-color: #22C55E; box-shadow: 0 0 0 3px #22C55E22; }
-
-        .token-badge {
-          display: flex; align-items: center; gap: 7px;
-          background: #0F1829; border: 1px solid #1A2840;
-          border-radius: 10px; padding: 7px 10px;
-          white-space: nowrap; flex-shrink: 0;
-        }
-
-        .badge-icon {
-          width: 22px; height: 22px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 11px; font-weight: 700; color: #fff;
-        }
-
-        .badge-label { font-size: 12px; font-weight: 600; color: #C8D8E8; }
-
-        .amount-input {
-          flex: 1; background: transparent; border: none; outline: none;
-          font-family: 'DM Mono', monospace; font-size: 22px;
-          font-weight: 500; color: #F1F5F9; width: 100%; min-width: 0;
-        }
-        .amount-input::placeholder { color: #1E2D45; }
-        .amount-input-ngn { color: #22C55E !important; }
-
-        .input-usd-hint {
-          font-size: 11px; color: #2A4060; font-family: 'DM Mono', monospace;
-          white-space: nowrap;
-        }
-
-        /* Quick amounts */
-        .quick-amounts {
-          display: flex; gap: 6px; margin-top: 8px;
-        }
-
-        .quick-btn {
-          flex: 1; padding: 6px; border-radius: 8px;
-          border: 1px solid #1A2840; background: #080E1A;
-          font-family: 'DM Sans', sans-serif; font-size: 11px;
-          font-weight: 600; color: #3A5070; cursor: pointer;
-          transition: all 0.15s;
-        }
-        .quick-btn:hover { border-color: var(--token-color); color: var(--token-color); }
-
-        /* Arrow */
-        .arrow-wrap {
-          display: flex; align-items: center; justify-content: center;
-          margin: 12px 0; position: relative;
-        }
-
-        .arrow-btn {
-          width: 36px; height: 36px; border-radius: 50%;
-          background: #0F1829; border: 1.5px solid #1A2840;
-          cursor: pointer; display: flex; align-items: center; justify-content: center;
-          color: #3A5070; transition: all 0.2s; z-index: 1;
-        }
-        .arrow-btn:hover { background: #FF6B00; color: #fff; border-color: #FF6B00; transform: rotate(180deg); }
-
-        .arrow-line {
-          position: absolute; left: 0; right: 0; height: 1px;
-          background: linear-gradient(90deg, transparent, #1A2840, transparent);
-        }
-
-        /* Summary strip */
-        .summary {
-          background: #080E1A; border: 1px solid #1A2840;
-          border-radius: 14px; padding: 14px 16px; margin-bottom: 18px;
-        }
-
-        .summary-row {
-          display: flex; justify-content: space-between; align-items: center;
-          font-size: 12px; color: #3A5070; padding: 3px 0;
-        }
-
-        .summary-val {
-          font-family: 'DM Mono', monospace; font-size: 11px; color: #6A8AAA;
-        }
-
-        .summary-total {
-          border-top: 1px solid #1A2840; margin-top: 8px; padding-top: 8px;
-          font-weight: 600; color: #C8D8E8 !important;
-        }
-
-        .summary-total .summary-val { color: #22C55E !important; font-size: 13px !important; }
-
-        .live-dot {
-          width: 5px; height: 5px; border-radius: 50%;
-          background: #22C55E; display: inline-block;
-          animation: blink 1.8s ease-in-out infinite; margin-right: 4px;
-        }
-
-        /* Convert button */
-        .convert-btn {
-          width: 100%; padding: 17px; border-radius: 16px; border: none;
-          cursor: pointer; font-family: 'DM Sans', sans-serif;
-          font-size: 15px; font-weight: 700; letter-spacing: 0.3px;
-          transition: all 0.25s; position: relative; overflow: hidden;
-        }
-
-        .convert-idle {
-          background: linear-gradient(135deg, #FF6B00 0%, #FF9A00 100%);
-          color: #fff; box-shadow: 0 8px 28px #FF6B0050;
-        }
-        .convert-idle:hover { transform: translateY(-2px); box-shadow: 0 14px 36px #FF6B0060; }
-        .convert-idle:active { transform: translateY(0); }
-
-        .convert-buy-idle {
-          background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
-          color: #fff; box-shadow: 0 8px 28px #22C55E40;
-        }
-        .convert-buy-idle:hover { transform: translateY(-2px); box-shadow: 0 14px 36px #22C55E50; }
-
-        .convert-loading { background: #0F1829; color: #3A5070; cursor: not-allowed; border: 1px solid #1A2840; }
-
-        .convert-success {
-          background: linear-gradient(135deg, #22C55E 0%, #86EFAC 100%);
-          color: #052e16; box-shadow: 0 8px 28px #22C55E50;
-        }
-
-        /* Spinner */
-        .spinner {
-          width: 16px; height: 16px;
-          border: 2px solid rgba(255,255,255,0.15);
-          border-top-color: #6A8AAA; border-radius: 50%;
-          animation: spin 0.7s linear infinite;
-          display: inline-block; vertical-align: middle; margin-right: 8px;
-        }
-
-        /* History card */
-        .history-card {
-          background: #0F1829; border: 1px solid #1A2840;
-          border-radius: 20px; padding: 20px; overflow: hidden;
-          transition: all 0.3s;
-        }
-
-        .history-header {
-          display: flex; justify-content: space-between; align-items: center;
-          margin-bottom: 14px; cursor: pointer;
-        }
-
-        .history-title { font-size: 12px; font-weight: 600; color: #4A6A8A; text-transform: uppercase; letter-spacing: 1px; }
-
-        .tx-row {
-          display: flex; align-items: center; gap: 12px;
-          padding: 10px 0; border-bottom: 1px solid #0A1020;
-        }
-        .tx-row:last-child { border-bottom: none; }
-
-        .tx-icon {
-          width: 32px; height: 32px; border-radius: 10px;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 14px; flex-shrink: 0;
-        }
-
-        .tx-sell { background: #FF6B0015; }
-        .tx-buy { background: #22C55E15; }
-
-        .tx-info { flex: 1; }
-        .tx-title { font-size: 12px; font-weight: 600; color: #8A9AB8; }
-        .tx-sub { font-size: 10px; color: #3A5070; margin-top: 1px; }
-        .tx-amount { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; color: #22C55E; text-align: right; }
-        .tx-time { font-size: 10px; color: #3A5070; text-align: right; margin-top: 2px; }
-
-        /* Trust badges */
-        .badges {
-          display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px;
-        }
-        .badge {
-          display: flex; align-items: center; gap: 4px;
-          font-size: 10px; color: #2A4060; font-weight: 500;
-        }
-
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes floatUp {
-          0% { opacity: 1; transform: translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateY(-60px) scale(0); }
-        }
-        @keyframes betaPulse {
-          0%, 100% { box-shadow: 0 0 12px #7C3AED33; }
-          50% { box-shadow: 0 0 20px #7C3AED66; }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .slide-in { animation: slideIn 0.3s ease forwards; }
-
-        .shimmer {
-          background: linear-gradient(90deg, #1A2840 25%, #2A3A5A 50%, #1A2840 75%);
-          background-size: 200% 100%;
-          animation: shimmerAnim 1.5s infinite;
-        }
-
-        @keyframes shimmerAnim {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
-
-      {/* Background */}
-      <div className="grid-bg" />
-      <div className="orb" style={{ width: 500, height: 500, background: token.color, opacity: 0.06, top: -150, right: -150 }} />
-      <div className="orb" style={{ width: 400, height: 400, background: "#2775CA", opacity: 0.05, bottom: -100, left: -150 }} />
-      <div className="orb" style={{ width: 200, height: 200, background: "#22C55E", opacity: 0.04, top: "40%", left: "10%" }} />
-
-      <div className="wrapper">
-        {/* Topbar */}
-        <div className="topbar">
-          <div className="logo">
-            <div className="logo-mark">S</div>
-            <div>
-              <div className="logo-text">StackSwap</div>
-              <div className="logo-sub">STACKS · NAIRA</div>
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 5,
-              background: "linear-gradient(135deg, #7C3AED22, #A855F722)",
-              border: "1px solid #7C3AED55",
-              borderRadius: 20, padding: "5px 10px",
-              fontSize: 10, fontWeight: 700, color: "#C084FC",
-              letterSpacing: "1.5px", textTransform: "uppercase",
-              animation: "betaPulse 3s ease-in-out infinite",
-            }}>
-              <span style={{
-                width: 5, height: 5, borderRadius: "50%", background: "#A855F7",
-                display: "inline-block", animation: "blink 1.8s ease-in-out infinite",
-                marginRight: 2,
-              }} />
-              Beta
-            </div>
-            <div className="network-pill">
-              <span className="live-dot" />
-              Mainnet
-            </div>
-          </div>
-        </div>
-
-        {/* Beta banner */}
-        <div style={{
-          background: "linear-gradient(135deg, #7C3AED11, #A855F711)",
-          border: "1px solid #7C3AED33",
-          borderRadius: 14, padding: "10px 16px",
-          display: "flex", alignItems: "center", gap: 10,
-          fontSize: 12,
-        }}>
-          <span style={{ fontSize: 16 }}>🧪</span>
-          <div>
-            <span style={{ color: "#C084FC", fontWeight: 600 }}>Beta Mode — </span>
-            <span style={{ color: "#5A5A8A" }}>Features may change. Use small amounts while we test.</span>
-          </div>
+    <div style={root}>
+      {/* HEADER */}
+      <header
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "16px 28px", borderBottom: "1px solid #1a2a1a",
+          background: "rgba(8,12,8,0.85)", backdropFilter: "blur(14px)",
+          position: "sticky", top: 0, zIndex: 100,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
-            marginLeft: "auto", fontSize: 10, color: "#7C3AED",
-            background: "#7C3AED22", borderRadius: 6, padding: "3px 8px",
-            fontWeight: 600, whiteSpace: "nowrap",
-          }}>v0.1.0</div>
+            width: 38, height: 38, background: "#25D366", borderRadius: 10,
+            display: "grid", placeItems: "center", fontSize: 18, flexShrink: 0,
+          }}>💬</div>
+          <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: "-0.4px" }}>
+            Web3<span style={{ color: "#25D366" }}>Nova</span>{" "}
+            <span style={{ color: "#4a5e4a", fontWeight: 500, fontSize: 14 }}>DM Tool</span>
+          </div>
         </div>
-
-        {/* Main card */}
-        <div className="card slide-in">
-          {/* Token selection */}
-          <div className="token-pills">
-            {TOKENS.map((t) => (
-              <button
-                key={t.id}
-                className={`token-pill ${selectedToken === t.id ? "token-pill-active" : ""}`}
-                style={selectedToken === t.id ? { ["--token-color" as any]: t.color, ["--token-glow" as any]: t.glow } : {}}
-                onClick={() => { setSelectedToken(t.id); setTokenAmount("100"); setNgnAmount(""); }}
-              >
-                <div className="pill-icon" style={{ background: t.color }}>{t.icon}</div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{t.symbol}</div>
-                  <div style={{ fontSize: 10, color: "#3A5070" }}>{t.label}</div>
-                </div>
-                <span className={`pill-change ${t.change >= 0 ? "pill-change-pos" : "pill-change-neg"}`}>
-                  {t.change >= 0 ? "▲" : "▼"} {Math.abs(t.change)}%
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Mode switch */}
-          <div className="mode-switch">
-            <button
-              className={`mode-btn ${mode === "sell" ? "mode-btn-sell-active" : ""}`}
-              onClick={() => setMode("sell")}
-            >
-              ↑ Sell {token.symbol}
-            </button>
-            <button
-              className={`mode-btn ${mode === "buy" ? "mode-btn-buy-active" : ""}`}
-              onClick={() => setMode("buy")}
-            >
-              ↓ Buy {token.symbol}
-            </button>
-          </div>
-
-          {/* Token amount input */}
-          <div style={{ marginBottom: 6 }}>
-            <div className="field-label">{mode === "sell" ? "You're Sending" : "You're Receiving"}</div>
-            <div className={`input-box ${focused === "token" ? "input-box-focused" : ""}`}>
-              <div className="token-badge">
-                <div className="badge-icon" style={{ background: token.color }}>{token.icon}</div>
-                <span className="badge-label">{token.symbol}</span>
-              </div>
-              <input
-                className="amount-input"
-                type="number"
-                placeholder="0.00"
-                value={tokenAmount}
-                onChange={(e) => handleTokenAmt(e.target.value)}
-                onFocus={() => setFocused("token")}
-                onBlur={() => setFocused(null)}
-              />
-              <div className="input-usd-hint">
-                ≈ {formatNGN((parseFloat(tokenAmount) || 0) * liveRate)}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick amounts */}
-          <div className="quick-amounts" style={{ ["--token-color" as any]: token.color }}>
-            {quickAmounts.map((amt) => (
-              <button key={amt} className="quick-btn" onClick={() => handleTokenAmt(amt)}>
-                {amt}
-              </button>
-            ))}
-            <button className="quick-btn" onClick={() => handleTokenAmt("5000")}>MAX</button>
-          </div>
-
-          {/* Arrow */}
-          <div className="arrow-wrap">
-            <div className="arrow-line" />
-            <button className="arrow-btn" onClick={() => setMode(mode === "sell" ? "buy" : "sell")}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" />
-              </svg>
-            </button>
-          </div>
-
-          {/* NGN amount */}
-          <div style={{ marginBottom: 20 }}>
-            <div className="field-label">{mode === "sell" ? "You're Receiving" : "You're Sending"}</div>
-            <div className={`input-box ${focused === "ngn" ? "input-box-ngn-focused" : ""}`}>
-              <div className="token-badge">
-                <div className="badge-icon" style={{ background: "#22C55E", fontSize: 13 }}>₦</div>
-                <span className="badge-label">NGN</span>
-              </div>
-              <input
-                className="amount-input amount-input-ngn"
-                type="number"
-                placeholder="0.00"
-                value={ngnAmount}
-                onChange={(e) => handleNgnAmt(e.target.value)}
-                onFocus={() => setFocused("ngn")}
-                onBlur={() => setFocused(null)}
-              />
-            </div>
-          </div>
-
-          {/* Summary */}
-          <div className="summary">
-            <div className="summary-row">
-              <span><span className="live-dot" />Rate</span>
-              <span className="summary-val">1 {token.symbol} = <AnimatedNumber value={liveRate} prefix="₦" /></span>
-            </div>
-            <div className="summary-row" style={{ marginTop: 4 }}>
-              <span>Network fee (0.5%)</span>
-              <span className="summary-val">- {formatNGN(fee)}</span>
-            </div>
-            <div className="summary-row" style={{ marginTop: 4 }}>
-              <span>Settlement</span>
-              <span className="summary-val" style={{ color: "#22C55E" }}>~30 sec</span>
-            </div>
-            <div className="summary-row summary-total">
-              <span>You {mode === "sell" ? "get" : "pay"}</span>
-              <span className="summary-val">
-                {mode === "sell" ? formatNGN(youGet) : `${tokenAmount} ${token.symbol}`}
-              </span>
-            </div>
-          </div>
-
-          {/* CTA button */}
-          <button
-            ref={btnRef}
-            className={`convert-btn ${
-              status === "idle"
-                ? mode === "sell" ? "convert-idle" : "convert-buy-idle"
-                : status === "loading"
-                ? "convert-loading"
-                : "convert-success"
-            }`}
-            onClick={handleConvert}
-            disabled={status !== "idle"}
-            style={{ ["--token-color" as any]: token.color }}
-          >
-            {status === "idle" && (
-              mode === "sell"
-                ? `⚡ Convert ${token.symbol} → Naira`
-                : `⚡ Buy ${token.symbol} with Naira`
-            )}
-            {status === "loading" && <><span className="spinner" />Processing transaction…</>}
-            {status === "success" && "✅ Conversion Complete!"}
-          </button>
-
-          <p style={{ textAlign: "center", fontSize: 10, color: "#1E2D45", marginTop: 14, lineHeight: 1.6 }}>
-            Powered by Stacks L2 · Secured by Bitcoin · KYC required above ₦500,000
-          </p>
-        </div>
-
-        {/* Recent transactions */}
-        <div className="history-card">
-          <div className="history-header" onClick={() => setShowHistory(!showHistory)}>
-            <span className="history-title">Recent Transactions</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3A5070" strokeWidth="2"
-              style={{ transform: showHistory ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
-              <path d="M6 9l6 6 6-6" />
-            </svg>
-          </div>
-          {showHistory && (
-            <div className="slide-in">
-              {recentTx.map((tx, i) => (
-                <div key={i} className="tx-row">
-                  <div className={`tx-icon ${tx.type === "sell" ? "tx-sell" : "tx-buy"}`}>
-                    {tx.type === "sell" ? "↑" : "↓"}
-                  </div>
-                  <div className="tx-info">
-                    <div className="tx-title">{tx.type === "sell" ? "Sold" : "Bought"} {tx.amount} {tx.token}</div>
-                    <div className="tx-sub">Confirmed · Stacks</div>
-                  </div>
-                  <div>
-                    <div className="tx-amount">₦{tx.ngn}</div>
-                    <div className="tx-time">{tx.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {!showHistory && (
-            <div style={{ display: "flex", gap: 6 }}>
-              {recentTx.slice(0, 3).map((tx, i) => (
-                <div key={i} style={{
-                  flex: 1, background: "#080E1A", borderRadius: 10, padding: "8px 10px",
-                  fontSize: 10, color: "#3A5070", textAlign: "center"
-                }}>
-                  <div style={{ color: tx.type === "sell" ? "#FF6B00" : "#22C55E", fontWeight: 600, marginBottom: 2 }}>
-                    {tx.type === "sell" ? "↑" : "↓"} {tx.token}
-                  </div>
-                  <div style={{ fontFamily: "'DM Mono', monospace", color: "#4A6A8A" }}>{tx.amount}</div>
-                  <div>{tx.time}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Trust badges */}
-        <div className="badges">
-          {["Non-custodial", "Bitcoin Secured", "Instant NGN", "CBN Compliant"].map((b) => (
-            <div key={b} className="badge">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="#22C55E" opacity="0.6">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              {b}
+        <div style={{ display: "flex", gap: 10, fontFamily: "'DM Mono',monospace", fontSize: 12 }}>
+          {[
+            { label: "registrants", val: REGISTRANTS.length, accent: false },
+            { label: "selected", val: selected.size, accent: true },
+          ].map((s) => (
+            <div key={s.label} style={{
+              background: "#111811", border: "1px solid #1a2a1a",
+              padding: "6px 14px", borderRadius: 20, color: "#5a7a5a",
+            }}>
+              <span style={{ color: s.accent ? "#a8ff78" : "#25D366", fontWeight: 600 }}>{s.val}</span>{" "}{s.label}
             </div>
           ))}
         </div>
+      </header>
+
+      {/* LAYOUT */}
+      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", minHeight: "calc(100vh - 69px)" }}>
+
+        {/* SIDEBAR */}
+        <aside style={{ borderRight: "1px solid #1a2a1a", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+          {/* Search */}
+          <div style={{ padding: "16px", borderBottom: "1px solid #1a2a1a", background: "#0e140e" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.2px", color: "#4a5e4a", marginBottom: 10 }}>
+              Registrants
+            </div>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#4a5e4a" }}>🔍</span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name, track, city…"
+                style={{
+                  width: "100%", background: "#141c14", border: "1px solid #1a2a1a",
+                  color: "#e4ede4", fontFamily: "'DM Mono',monospace", fontSize: 12,
+                  padding: "9px 12px 9px 34px", borderRadius: 8, outline: "none",
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div style={{
+            display: "flex", gap: 6, padding: "10px 14px", borderBottom: "1px solid #1a2a1a",
+            background: "#0e140e", overflowX: "auto",
+          }}>
+            {FILTERS.map((f) => (
+              <button key={f} onClick={() => setFilter(f)} style={{
+                whiteSpace: "nowrap", fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 700,
+                padding: "5px 12px", borderRadius: 20, border: "1px solid",
+                cursor: "pointer", transition: "all .15s",
+                borderColor: filter === f ? "#25D366" : "#1a2a1a",
+                background: filter === f ? "rgba(37,211,102,0.12)" : "transparent",
+                color: filter === f ? "#25D366" : "#4a5e4a",
+              }}>{f}</button>
+            ))}
+          </div>
+
+          {/* Select All */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "9px 14px", borderBottom: "1px solid #1a2a1a",
+            background: "#0e140e", fontSize: 12,
+          }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", color: "#5a7a5a" }}>
+              <input
+                type="checkbox"
+                onChange={(e) => toggleAll(e.target.checked)}
+                checked={visible.length > 0 && visible.every((r) => selected.has(REGISTRANTS.indexOf(r)))}
+                style={{ accentColor: "#25D366" }}
+              />
+              Select all visible
+            </label>
+            <span style={{ fontFamily: "'DM Mono',monospace", color: "#a8ff78", fontWeight: 600, fontSize: 11 }}>
+              {selected.size} selected
+            </span>
+          </div>
+
+          {/* Contact List */}
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {visible.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 40, color: "#4a5e4a", fontSize: 13 }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>No results
+              </div>
+            ) : (
+              visible.map((r) => {
+                const idx = REGISTRANTS.indexOf(r);
+                const isSel = selected.has(idx);
+                const ts: TrackStyle = TRACK_STYLE[r.track] ?? TRACK_STYLE["Blockchain"];
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => toggle(idx)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 11,
+                      padding: "11px 14px", cursor: "pointer",
+                      borderBottom: "1px solid rgba(26,42,26,0.5)",
+                      background: isSel ? "rgba(37,211,102,0.07)" : "transparent",
+                      transition: "background .12s",
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                      border: `1.5px solid ${isSel ? "#25D366" : "#1a2a1a"}`,
+                      background: isSel ? "#25D366" : "#141c14",
+                      display: "grid", placeItems: "center",
+                      fontSize: 11, color: "#000", fontWeight: 700, transition: "all .15s",
+                    }}>{isSel ? "✓" : ""}</div>
+
+                    <div style={{
+                      width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                      background: "#1a2a1a", color: "#a8ff78",
+                      display: "grid", placeItems: "center", fontSize: 12, fontWeight: 800,
+                    }}>{getInitials(r.name)}</div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</div>
+                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#4a5e4a", marginTop: 1 }}>{r.phone}</div>
+                    </div>
+
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: "2px 9px", borderRadius: 20,
+                      background: ts.bg, color: ts.color, border: `1px solid ${ts.border}`,
+                      whiteSpace: "nowrap", flexShrink: 0,
+                    }}>{r.track}</span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </aside>
+
+        {/* MAIN */}
+        <main style={{ padding: "24px 28px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 22 }}>
+
+          {/* Templates */}
+          <section>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#4a5e4a", marginBottom: 12 }}>
+              Quick Templates
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(165px,1fr))", gap: 10 }}>
+              {TEMPLATES.map((t, i) => (
+                <button key={i} onClick={() => pickTemplate(i)} style={{
+                  background: activeTpl === i ? "rgba(37,211,102,0.07)" : "#111811",
+                  border: `1px solid ${activeTpl === i ? "#25D366" : "#1a2a1a"}`,
+                  borderRadius: 10, padding: "13px 14px", cursor: "pointer",
+                  textAlign: "left", transition: "all .15s", color: "inherit",
+                  position: "relative", overflow: "hidden",
+                }}>
+                  {activeTpl === i && (
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,#25D366,#a8ff78)" }} />
+                  )}
+                  <div style={{ fontSize: 18, marginBottom: 6 }}>{t.emoji}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: activeTpl === i ? "#25D366" : "#e4ede4" }}>{t.title}</div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Composer */}
+          <section>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#4a5e4a", marginBottom: 12 }}>
+              Compose Message
+            </div>
+            <div style={{ background: "#111811", border: "1px solid #1a2a1a", borderRadius: 12, overflow: "hidden" }}>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "11px 14px", borderBottom: "1px solid #1a2a1a", background: "#0e140e",
+              }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {["{{name}}", "{{track}}", "{{location}}", "{{level}}"].map((v) => (
+                    <button key={v} onClick={() => insertVar(v)} style={{
+                      fontFamily: "'DM Mono',monospace", fontSize: 11, fontWeight: 500,
+                      padding: "4px 10px", borderRadius: 6, border: "1px solid #1a2a1a",
+                      background: "transparent", color: "#25D366", cursor: "pointer",
+                    }}>{v}</button>
+                  ))}
+                </div>
+                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#4a5e4a" }}>{message.length} chars</span>
+              </div>
+              <textarea
+                id="msg-ta"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder={"Type your message here…\n\nUse {{name}}, {{track}}, {{location}} as placeholders."}
+                rows={8}
+                style={{
+                  width: "100%", background: "transparent", border: "none",
+                  color: "#e4ede4", fontFamily: "'DM Mono',monospace", fontSize: 13,
+                  lineHeight: 1.75, padding: "16px", outline: "none", resize: "none",
+                  minHeight: 170,
+                }}
+              />
+            </div>
+          </section>
+
+          {/* Preview */}
+          <section>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#4a5e4a", marginBottom: 12 }}>
+              Preview
+            </div>
+            <div style={{ background: "#111811", border: "1px solid #1a2a1a", borderRadius: 12, padding: 20 }}>
+              <div style={{
+                background: "#182818", borderRadius: 18, padding: "16px 16px 20px",
+                maxWidth: 300, margin: "0 auto", border: "1px solid #1a2a1a",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+              }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 14,
+                }}>
+                  <div style={{
+                    width: 34, height: 34, borderRadius: "50%", background: "#25D366",
+                    display: "grid", placeItems: "center", fontSize: 15, flexShrink: 0,
+                  }}>👤</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{previewContact.name.split(" ")[0]}</div>
+                    <div style={{ fontSize: 11, color: "#25D366", fontFamily: "'DM Mono',monospace" }}>online</div>
+                  </div>
+                </div>
+                <div style={{
+                  background: "#005c4b", borderRadius: "8px 8px 0 8px",
+                  padding: "10px 13px", fontSize: 13, lineHeight: 1.65,
+                  fontFamily: "'DM Mono',monospace", color: "#e8f5e8",
+                  whiteSpace: "pre-wrap", wordBreak: "break-word",
+                }}>{previewMsg}</div>
+                <div style={{ textAlign: "right", fontSize: 10, color: "rgba(232,245,232,0.4)", marginTop: 4, fontFamily: "'DM Mono',monospace" }}>
+                  {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Send */}
+          <div style={{
+            background: "#111811", border: "1px solid #1a2a1a", borderRadius: 12,
+            padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+          }}>
+            <div style={{ fontSize: 13, color: "#5a7a5a" }}>
+              Ready to send to{" "}
+              <span style={{ color: "#e4ede4", fontWeight: 700 }}>{selected.size} {selected.size === 1 ? "person" : "people"}</span>
+              {selected.size > 10 && (
+                <><br /><span style={{ color: "#ffd166", fontSize: 12 }}>⚠ WhatsApp will open for each recipient</span></>
+              )}
+            </div>
+            <button
+              onClick={startSending}
+              disabled={!canSend}
+              style={{
+                display: "flex", alignItems: "center", gap: 9,
+                background: canSend ? "#25D366" : "#1a2a1a",
+                color: canSend ? "#000" : "#3a4e3a",
+                fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800,
+                padding: "12px 26px", border: "none", borderRadius: 10,
+                cursor: canSend ? "pointer" : "not-allowed", transition: "all .2s",
+                boxShadow: canSend ? "0 4px 20px rgba(37,211,102,0.25)" : "none",
+              }}
+            >
+              💬 Open in WhatsApp
+            </button>
+          </div>
+        </main>
       </div>
+
+      {/* MODAL */}
+      {modal && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)",
+          display: "grid", placeItems: "center", zIndex: 1000, backdropFilter: "blur(8px)",
+        }}>
+          <div style={{
+            background: "#111811", border: "1px solid #1a2a1a", borderRadius: 16,
+            padding: 28, width: 460, maxWidth: "94vw",
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>
+              {done ? "🎉 All Done!" : "💬 Sending Messages"}
+            </div>
+            <div style={{ fontSize: 13, color: "#5a7a5a", marginBottom: 18 }}>
+              {done
+                ? "All chats opened in WhatsApp. Send each message manually."
+                : `${sendIdx} / ${sendQueue.length} opened…`}
+            </div>
+
+            <div style={{ background: "#1a2a1a", borderRadius: 4, height: 6, marginBottom: 18, overflow: "hidden" }}>
+              <div style={{
+                height: "100%", borderRadius: 4,
+                background: "linear-gradient(90deg,#25D366,#a8ff78)",
+                width: `${progress}%`, transition: "width .3s",
+              }} />
+            </div>
+
+            <div style={{
+              background: "#080c08", borderRadius: 8, padding: 14,
+              height: 150, overflowY: "auto",
+              fontFamily: "'DM Mono',monospace", fontSize: 12, lineHeight: 2,
+            }}>
+              {logs.map((l, i) => (
+                <div key={i} style={{ color: l.type === "ok" ? "#25D366" : l.type === "err" ? "#ff6b6b" : "#4a5e4a" }}>
+                  {l.text}
+                </div>
+              ))}
+              {!done && sendIdx < sendQueue.length && (
+                <div style={{ color: "#4a5e4a" }}>Next: {sendQueue[sendIdx]?.name}…</div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+              <button onClick={() => setModal(false)} style={{
+                fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700,
+                padding: "9px 18px", borderRadius: 8, border: "1px solid #1a2a1a",
+                background: "transparent", color: "#e4ede4", cursor: "pointer",
+              }}>Close</button>
+
+              {!done && sendIdx < sendQueue.length && (
+                <button
+                  onClick={() => {
+                    const updated = openNext(sendQueue, sendIdx, logs);
+                    if (updated) setLogs(updated);
+                  }}
+                  style={{
+                    fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700,
+                    padding: "9px 18px", borderRadius: 8, border: "none",
+                    background: "#25D366", color: "#000", cursor: "pointer",
+                  }}
+                >
+                  Open Next →
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
