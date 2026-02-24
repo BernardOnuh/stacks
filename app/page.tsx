@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect, CSSProperties } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +29,8 @@ interface LogEntry {
   text: string;
   type: "ok" | "err" | "info";
 }
+
+type Tab = "contacts" | "compose" | "preview" | "send";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -83,21 +85,45 @@ See you on the inside 💪
 — Web3Nova`;
 
 const TEMPLATES: Template[] = [
-  { title:"Cohort III Invite", emoji:"🚀", text: DEFAULT_MSG },
-  { title:"Welcome", emoji:"👋", text:`Hi {{name}}! 👋\n\nWelcome to Web3Nova Bootcamp! 🚀\n\nWe're thrilled to have you on the *{{track}}* track. Get ready for an incredible journey!\n\nStay active in our community channels — see you soon! 💪` },
-  { title:"Kickoff", emoji:"🎉", text:`Hello {{name}}! 🎉\n\nOur Web3Nova Cohort officially kicks off this week!\n\nYou're registered for *{{track}}* — check your email for onboarding details and the Zoom link.\n\nSee you there! 🔥` },
-  { title:"Class Reminder", emoji:"⏰", text:`Hey {{name}}! ⏰\n\nQuick reminder — your *{{track}}* class holds today.\n\nGet your tools ready and show up to learn. Let's build something great together! 👨‍💻` },
-  { title:"Assignment", emoji:"📋", text:`Hi {{name}} 👩‍💻\n\nA new assignment just dropped for *{{track}}*!\n\nLog in to your dashboard to view details. Deadline is 72 hours — don't wait! Good luck! 🙌` },
-  { title:"Custom", emoji:"✏️", text:`` },
+  { title: "Cohort III", emoji: "🚀", text: DEFAULT_MSG },
+  { title: "Welcome",    emoji: "👋", text: `Hi {{name}}! 👋\n\nWelcome to Web3Nova Bootcamp! 🚀\n\nWe're thrilled to have you on the *{{track}}* track. Get ready for an incredible journey!\n\nStay active in our community channels — see you soon! 💪` },
+  { title: "Kickoff",    emoji: "🎉", text: `Hello {{name}}! 🎉\n\nOur Web3Nova Cohort officially kicks off this week!\n\nYou're registered for *{{track}}* — check your email for onboarding details and the Zoom link.\n\nSee you there! 🔥` },
+  { title: "Reminder",   emoji: "⏰", text: `Hey {{name}}! ⏰\n\nQuick reminder — your *{{track}}* class holds today.\n\nGet your tools ready and show up to learn. Let's build something great together! 👨‍💻` },
+  { title: "Assignment", emoji: "📋", text: `Hi {{name}} 👩‍💻\n\nA new assignment just dropped for *{{track}}*!\n\nLog in to your dashboard to view details. Deadline is 72 hours — don't wait! Good luck! 🙌` },
+  { title: "Custom",     emoji: "✏️", text: `` },
 ];
 
 const TRACK_STYLE: Record<string, TrackStyle> = {
-  "Blockchain": { bg:"rgba(37,211,102,0.12)", color:"#25D366",  border:"rgba(37,211,102,0.25)" },
-  "Web Dev":    { bg:"rgba(168,255,120,0.1)",  color:"#a8ff78",  border:"rgba(168,255,120,0.25)" },
-  "UI/UX":      { bg:"rgba(255,209,102,0.1)",  color:"#ffd166",  border:"rgba(255,209,102,0.25)" },
+  Blockchain: { bg: "rgba(37,211,102,0.12)", color: "#25D366", border: "rgba(37,211,102,0.25)" },
+  "Web Dev":  { bg: "rgba(168,255,120,0.1)",  color: "#a8ff78", border: "rgba(168,255,120,0.25)" },
+  "UI/UX":    { bg: "rgba(255,209,102,0.1)",  color: "#ffd166", border: "rgba(255,209,102,0.25)" },
 };
 
-const FILTERS: string[] = ["All","Blockchain","Web Dev","UI/UX","Futa","Online"];
+const FILTERS: string[] = ["All", "Blockchain", "Web Dev", "UI/UX", "Futa", "Online"];
+
+const TABS: { id: Tab; label: string; emoji: string }[] = [
+  { id: "contacts", label: "Contacts", emoji: "👥" },
+  { id: "compose",  label: "Compose",  emoji: "✍️" },
+  { id: "preview",  label: "Preview",  emoji: "👁" },
+  { id: "send",     label: "Send",     emoji: "💬" },
+];
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
+
+const C = {
+  bg:      "#080c08",
+  surface: "#0e140e",
+  card:    "#111811",
+  border:  "#1a2a1a",
+  text:    "#e4ede4",
+  muted:   "#4a5e4a",
+  mid:     "#5a7a5a",
+  green:   "#25D366",
+  accent:  "#a8ff78",
+  warn:    "#ffd166",
+  mono:    "'DM Mono', monospace" as const,
+  sans:    "'Syne', sans-serif" as const,
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -120,25 +146,41 @@ function getInitials(name: string): string {
   return name.split(" ").slice(0, 2).map((x) => x[0]).join("").toUpperCase();
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: C.muted, marginBottom: 12 }}>
+      {children}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Web3NovaDMTool() {
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [filter, setFilter] = useState<string>("All");
-  const [search, setSearch] = useState<string>("");
-  const [message, setMessage] = useState<string>(DEFAULT_MSG);
+  const [tab, setTab]             = useState<Tab>("contacts");
+  const [selected, setSelected]   = useState<Set<number>>(new Set());
+  const [filter, setFilter]       = useState<string>("All");
+  const [search, setSearch]       = useState<string>("");
+  const [message, setMessage]     = useState<string>(DEFAULT_MSG);
   const [activeTpl, setActiveTpl] = useState<number>(0);
-  const [modal, setModal] = useState<boolean>(false);
-  const [sendIdx, setSendIdx] = useState<number>(0);
+  const [modal, setModal]         = useState<boolean>(false);
+  const [sendIdx, setSendIdx]     = useState<number>(0);
   const [sendQueue, setSendQueue] = useState<Registrant[]>([]);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [done, setDone] = useState<boolean>(false);
+  const [logs, setLogs]           = useState<LogEntry[]>([]);
+  const [done, setDone]           = useState<boolean>(false);
+  const [isMobile, setIsMobile]   = useState<boolean>(false);
 
   useEffect(() => {
+    // Font
     const link = document.createElement("link");
     link.href = "https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
+    // Responsive
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
   }, []);
 
   const visible = useMemo<Registrant[]>(() => {
@@ -152,7 +194,7 @@ export default function Web3NovaDMTool() {
       const matchFilter =
         filter === "All" ||
         r.track === filter ||
-        (filter === "Futa" && r.location.toLowerCase().includes("futa")) ||
+        (filter === "Futa"   && r.location.toLowerCase().includes("futa")) ||
         (filter === "Online" && ["online", "virtual"].includes(r.location.toLowerCase()));
       return matchSearch && matchFilter;
     });
@@ -168,60 +210,33 @@ export default function Web3NovaDMTool() {
 
   const toggleAll = (checked: boolean) => {
     if (checked) {
-      setSelected((prev) => {
-        const n = new Set(prev);
-        visible.forEach((r) => n.add(REGISTRANTS.indexOf(r)));
-        return n;
-      });
+      setSelected((prev) => { const n = new Set(prev); visible.forEach((r) => n.add(REGISTRANTS.indexOf(r))); return n; });
     } else {
-      setSelected((prev) => {
-        const n = new Set(prev);
-        visible.forEach((r) => n.delete(REGISTRANTS.indexOf(r)));
-        return n;
-      });
+      setSelected((prev) => { const n = new Set(prev); visible.forEach((r) => n.delete(REGISTRANTS.indexOf(r))); return n; });
     }
   };
 
-  const pickTemplate = (i: number) => {
-    setActiveTpl(i);
-    setMessage(TEMPLATES[i].text);
-  };
+  const pickTemplate = (i: number) => { setActiveTpl(i); setMessage(TEMPLATES[i].text); };
 
   const insertVar = (v: string) => {
     const ta = document.getElementById("msg-ta") as HTMLTextAreaElement | null;
     if (!ta) return;
     const s = ta.selectionStart ?? message.length;
-    const e = ta.selectionEnd ?? message.length;
+    const e = ta.selectionEnd   ?? message.length;
     setMessage(message.slice(0, s) + v + message.slice(e));
-    setTimeout(() => {
-      ta.focus();
-      ta.setSelectionRange(s + v.length, s + v.length);
-    }, 0);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(s + v.length, s + v.length); }, 0);
   };
 
-  const previewContact: Registrant =
-    selected.size > 0 ? REGISTRANTS[[...selected][0]] : REGISTRANTS[0];
-  const previewMsg = message
-    ? resolveMsg(message, previewContact)
-    : "Your message will appear here…";
+  const previewContact: Registrant = selected.size > 0 ? REGISTRANTS[[...selected][0]] : REGISTRANTS[0];
+  const previewMsg  = message ? resolveMsg(message, previewContact) : "Your message will appear here…";
+  const canSend     = selected.size > 0 && message.trim() !== "";
 
-  const canSend = selected.size > 0 && message.trim() !== "";
-
-  const openNext = (
-    queue: Registrant[],
-    idx: number,
-    currentLogs: LogEntry[]
-  ): LogEntry[] | undefined => {
-    if (idx >= queue.length) {
-      setDone(true);
-      return;
-    }
+  const openNext = (queue: Registrant[], idx: number, currentLogs: LogEntry[]): LogEntry[] | undefined => {
+    if (idx >= queue.length) { setDone(true); return; }
     const r = queue[idx];
-    const phone = normalizePhone(r.phone);
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(resolveMsg(message, r))}`;
+    const url = `https://wa.me/${normalizePhone(r.phone)}?text=${encodeURIComponent(resolveMsg(message, r))}`;
     window.open(url, "_blank");
-    const newLog: LogEntry = { text: `✅ Opened chat for ${r.name}`, type: "ok" };
-    const updated = [...currentLogs, newLog];
+    const updated = [...currentLogs, { text: `✅ Opened chat for ${r.name}`, type: "ok" as const }];
     setLogs(updated);
     setSendIdx(idx + 1);
     if (idx + 1 >= queue.length) setDone(true);
@@ -230,382 +245,479 @@ export default function Web3NovaDMTool() {
 
   const startSending = () => {
     const queue = [...selected].map((i) => REGISTRANTS[i]);
-    setSendQueue(queue);
-    setSendIdx(0);
-    setLogs([]);
-    setDone(false);
-    setModal(true);
+    setSendQueue(queue); setSendIdx(0); setLogs([]); setDone(false); setModal(true);
     openNext(queue, 0, []);
   };
 
-  const progress = sendQueue.length
-    ? Math.round((sendIdx / sendQueue.length) * 100)
-    : 0;
+  const progress = sendQueue.length ? Math.round((sendIdx / sendQueue.length) * 100) : 0;
 
-  // ── Styles ──────────────────────────────────────────────────────────────────
-
-  const root: CSSProperties = {
-    fontFamily: "'Syne', sans-serif",
-    background: "#080c08",
-    minHeight: "100vh",
-    color: "#e4ede4",
-    backgroundImage:
-      "radial-gradient(ellipse at 15% 25%, rgba(37,211,102,0.06) 0%, transparent 55%), radial-gradient(ellipse at 85% 75%, rgba(168,255,120,0.03) 0%, transparent 50%)",
-  };
-
-  return (
-    <div style={root}>
-      {/* HEADER */}
-      <header
-        style={{
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          padding: "16px 28px", borderBottom: "1px solid #1a2a1a",
-          background: "rgba(8,12,8,0.85)", backdropFilter: "blur(14px)",
-          position: "sticky", top: 0, zIndex: 100,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 38, height: 38, background: "#25D366", borderRadius: 10,
-            display: "grid", placeItems: "center", fontSize: 18, flexShrink: 0,
-          }}>💬</div>
-          <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: "-0.4px" }}>
-            Web3<span style={{ color: "#25D366" }}>Nova</span>{" "}
-            <span style={{ color: "#4a5e4a", fontWeight: 500, fontSize: 14 }}>DM Tool</span>
-          </div>
+  // ── Contacts panel ───────────────────────────────────────────────────────────
+  const ContactsPanel = (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+      {/* Search */}
+      <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
+        <div style={{ position: "relative" }}>
+          <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: C.muted }}>🔍</span>
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, track, city…"
+            style={{
+              width: "100%", background: C.card, border: `1px solid ${C.border}`,
+              color: C.text, fontFamily: C.mono, fontSize: 13,
+              padding: "10px 12px 10px 36px", borderRadius: 10, outline: "none", boxSizing: "border-box",
+            }}
+          />
         </div>
-        <div style={{ display: "flex", gap: 10, fontFamily: "'DM Mono',monospace", fontSize: 12 }}>
-          {[
-            { label: "registrants", val: REGISTRANTS.length, accent: false },
-            { label: "selected", val: selected.size, accent: true },
-          ].map((s) => (
-            <div key={s.label} style={{
-              background: "#111811", border: "1px solid #1a2a1a",
-              padding: "6px 14px", borderRadius: 20, color: "#5a7a5a",
+      </div>
+      {/* Filters */}
+      <div style={{
+        display: "flex", gap: 6, padding: "10px 16px", flexShrink: 0,
+        borderBottom: `1px solid ${C.border}`, background: C.surface,
+        overflowX: "auto", WebkitOverflowScrolling: "touch" as never,
+      }}>
+        {FILTERS.map((f) => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            whiteSpace: "nowrap", fontFamily: C.sans, fontSize: 11, fontWeight: 700,
+            padding: "6px 14px", borderRadius: 20, border: "1px solid", cursor: "pointer", flexShrink: 0,
+            borderColor: filter === f ? C.green : C.border,
+            background:  filter === f ? "rgba(37,211,102,0.12)" : "transparent",
+            color:       filter === f ? C.green : C.muted,
+          }}>{f}</button>
+        ))}
+      </div>
+      {/* Select all */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 16px", borderBottom: `1px solid ${C.border}`, background: C.surface, flexShrink: 0,
+      }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", color: C.mid, fontSize: 13 }}>
+          <input
+            type="checkbox"
+            onChange={(e) => toggleAll(e.target.checked)}
+            checked={visible.length > 0 && visible.every((r) => selected.has(REGISTRANTS.indexOf(r)))}
+            style={{ accentColor: C.green, width: 16, height: 16 }}
+          />
+          Select all visible
+        </label>
+        <span style={{ fontFamily: C.mono, color: C.accent, fontWeight: 600, fontSize: 12 }}>{selected.size} selected</span>
+      </div>
+      {/* List */}
+      <div style={{ overflowY: "auto", flex: 1 }}>
+        {visible.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 40, color: C.muted, fontSize: 13 }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>No results
+          </div>
+        ) : visible.map((r) => {
+          const idx = REGISTRANTS.indexOf(r);
+          const isSel = selected.has(idx);
+          const ts: TrackStyle = TRACK_STYLE[r.track] ?? TRACK_STYLE["Blockchain"];
+          return (
+            <div key={idx} onClick={() => toggle(idx)} style={{
+              display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", cursor: "pointer",
+              borderBottom: `1px solid rgba(26,42,26,0.5)`,
+              background: isSel ? "rgba(37,211,102,0.07)" : "transparent",
             }}>
-              <span style={{ color: s.accent ? "#a8ff78" : "#25D366", fontWeight: 600 }}>{s.val}</span>{" "}{s.label}
+              <div style={{
+                width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                border: `2px solid ${isSel ? C.green : C.border}`,
+                background: isSel ? C.green : C.card,
+                display: "grid", placeItems: "center", fontSize: 12, color: "#000", fontWeight: 800,
+              }}>{isSel ? "✓" : ""}</div>
+              <div style={{
+                width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                background: C.border, color: C.accent,
+                display: "grid", placeItems: "center", fontSize: 13, fontWeight: 800,
+              }}>{getInitials(r.name)}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</div>
+                <div style={{ fontFamily: C.mono, fontSize: 12, color: C.muted, marginTop: 2 }}>{r.phone}</div>
+              </div>
+              <span style={{
+                fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", flexShrink: 0,
+                background: ts.bg, color: ts.color, border: `1px solid ${ts.border}`,
+              }}>{r.track}</span>
             </div>
-          ))}
+          );
+        })}
+      </div>
+      {/* Next CTA (mobile only) */}
+      {isMobile && (
+        <div style={{ padding: "12px 16px", borderTop: `1px solid ${C.border}`, background: C.surface, flexShrink: 0 }}>
+          <button onClick={() => setTab("compose")} style={{
+            width: "100%", background: C.green, color: "#000",
+            fontFamily: C.sans, fontSize: 15, fontWeight: 800,
+            padding: "14px", border: "none", borderRadius: 12, cursor: "pointer",
+          }}>Compose Message →</button>
         </div>
-      </header>
+      )}
+    </div>
+  );
 
-      {/* LAYOUT */}
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", minHeight: "calc(100vh - 69px)" }}>
-
-        {/* SIDEBAR */}
-        <aside style={{ borderRight: "1px solid #1a2a1a", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-          {/* Search */}
-          <div style={{ padding: "16px", borderBottom: "1px solid #1a2a1a", background: "#0e140e" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.2px", color: "#4a5e4a", marginBottom: 10 }}>
-              Registrants
-            </div>
-            <div style={{ position: "relative" }}>
-              <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#4a5e4a" }}>🔍</span>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search name, track, city…"
-                style={{
-                  width: "100%", background: "#141c14", border: "1px solid #1a2a1a",
-                  color: "#e4ede4", fontFamily: "'DM Mono',monospace", fontSize: 12,
-                  padding: "9px 12px 9px 34px", borderRadius: 8, outline: "none",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div style={{
-            display: "flex", gap: 6, padding: "10px 14px", borderBottom: "1px solid #1a2a1a",
-            background: "#0e140e", overflowX: "auto",
+  // ── Compose panel ─────────────────────────────────────────────────────────────
+  const ComposePanel = (
+    <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+      <SectionLabel>Quick Templates</SectionLabel>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "repeat(3,1fr)" : "repeat(auto-fill,minmax(145px,1fr))",
+        gap: 8, marginBottom: 20,
+      }}>
+        {TEMPLATES.map((t, i) => (
+          <button key={i} onClick={() => pickTemplate(i)} style={{
+            background: activeTpl === i ? "rgba(37,211,102,0.08)" : C.card,
+            border: `1px solid ${activeTpl === i ? C.green : C.border}`,
+            borderRadius: 10, padding: isMobile ? "10px 6px" : "13px 12px",
+            cursor: "pointer", textAlign: "center", color: "inherit", position: "relative", overflow: "hidden",
           }}>
-            {FILTERS.map((f) => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                whiteSpace: "nowrap", fontFamily: "'Syne',sans-serif", fontSize: 11, fontWeight: 700,
-                padding: "5px 12px", borderRadius: 20, border: "1px solid",
-                cursor: "pointer", transition: "all .15s",
-                borderColor: filter === f ? "#25D366" : "#1a2a1a",
-                background: filter === f ? "rgba(37,211,102,0.12)" : "transparent",
-                color: filter === f ? "#25D366" : "#4a5e4a",
-              }}>{f}</button>
-            ))}
-          </div>
-
-          {/* Select All */}
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "9px 14px", borderBottom: "1px solid #1a2a1a",
-            background: "#0e140e", fontSize: 12,
-          }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", color: "#5a7a5a" }}>
-              <input
-                type="checkbox"
-                onChange={(e) => toggleAll(e.target.checked)}
-                checked={visible.length > 0 && visible.every((r) => selected.has(REGISTRANTS.indexOf(r)))}
-                style={{ accentColor: "#25D366" }}
-              />
-              Select all visible
-            </label>
-            <span style={{ fontFamily: "'DM Mono',monospace", color: "#a8ff78", fontWeight: 600, fontSize: 11 }}>
-              {selected.size} selected
-            </span>
-          </div>
-
-          {/* Contact List */}
-          <div style={{ overflowY: "auto", flex: 1 }}>
-            {visible.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 40, color: "#4a5e4a", fontSize: 13 }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🔍</div>No results
-              </div>
-            ) : (
-              visible.map((r) => {
-                const idx = REGISTRANTS.indexOf(r);
-                const isSel = selected.has(idx);
-                const ts: TrackStyle = TRACK_STYLE[r.track] ?? TRACK_STYLE["Blockchain"];
-                return (
-                  <div
-                    key={idx}
-                    onClick={() => toggle(idx)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 11,
-                      padding: "11px 14px", cursor: "pointer",
-                      borderBottom: "1px solid rgba(26,42,26,0.5)",
-                      background: isSel ? "rgba(37,211,102,0.07)" : "transparent",
-                      transition: "background .12s",
-                    }}
-                  >
-                    <div style={{
-                      width: 18, height: 18, borderRadius: 5, flexShrink: 0,
-                      border: `1.5px solid ${isSel ? "#25D366" : "#1a2a1a"}`,
-                      background: isSel ? "#25D366" : "#141c14",
-                      display: "grid", placeItems: "center",
-                      fontSize: 11, color: "#000", fontWeight: 700, transition: "all .15s",
-                    }}>{isSel ? "✓" : ""}</div>
-
-                    <div style={{
-                      width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                      background: "#1a2a1a", color: "#a8ff78",
-                      display: "grid", placeItems: "center", fontSize: 12, fontWeight: 800,
-                    }}>{getInitials(r.name)}</div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</div>
-                      <div style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#4a5e4a", marginTop: 1 }}>{r.phone}</div>
-                    </div>
-
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: "2px 9px", borderRadius: 20,
-                      background: ts.bg, color: ts.color, border: `1px solid ${ts.border}`,
-                      whiteSpace: "nowrap", flexShrink: 0,
-                    }}>{r.track}</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </aside>
-
-        {/* MAIN */}
-        <main style={{ padding: "24px 28px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 22 }}>
-
-          {/* Templates */}
-          <section>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#4a5e4a", marginBottom: 12 }}>
-              Quick Templates
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(165px,1fr))", gap: 10 }}>
-              {TEMPLATES.map((t, i) => (
-                <button key={i} onClick={() => pickTemplate(i)} style={{
-                  background: activeTpl === i ? "rgba(37,211,102,0.07)" : "#111811",
-                  border: `1px solid ${activeTpl === i ? "#25D366" : "#1a2a1a"}`,
-                  borderRadius: 10, padding: "13px 14px", cursor: "pointer",
-                  textAlign: "left", transition: "all .15s", color: "inherit",
-                  position: "relative", overflow: "hidden",
-                }}>
-                  {activeTpl === i && (
-                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg,#25D366,#a8ff78)" }} />
-                  )}
-                  <div style={{ fontSize: 18, marginBottom: 6 }}>{t.emoji}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: activeTpl === i ? "#25D366" : "#e4ede4" }}>{t.title}</div>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Composer */}
-          <section>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#4a5e4a", marginBottom: 12 }}>
-              Compose Message
-            </div>
-            <div style={{ background: "#111811", border: "1px solid #1a2a1a", borderRadius: 12, overflow: "hidden" }}>
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
-                padding: "11px 14px", borderBottom: "1px solid #1a2a1a", background: "#0e140e",
-              }}>
-                <div style={{ display: "flex", gap: 6 }}>
-                  {["{{name}}", "{{track}}", "{{location}}", "{{level}}"].map((v) => (
-                    <button key={v} onClick={() => insertVar(v)} style={{
-                      fontFamily: "'DM Mono',monospace", fontSize: 11, fontWeight: 500,
-                      padding: "4px 10px", borderRadius: 6, border: "1px solid #1a2a1a",
-                      background: "transparent", color: "#25D366", cursor: "pointer",
-                    }}>{v}</button>
-                  ))}
-                </div>
-                <span style={{ fontFamily: "'DM Mono',monospace", fontSize: 11, color: "#4a5e4a" }}>{message.length} chars</span>
-              </div>
-              <textarea
-                id="msg-ta"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder={"Type your message here…\n\nUse {{name}}, {{track}}, {{location}} as placeholders."}
-                rows={8}
-                style={{
-                  width: "100%", background: "transparent", border: "none",
-                  color: "#e4ede4", fontFamily: "'DM Mono',monospace", fontSize: 13,
-                  lineHeight: 1.75, padding: "16px", outline: "none", resize: "none",
-                  minHeight: 170,
-                }}
-              />
-            </div>
-          </section>
-
-          {/* Preview */}
-          <section>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#4a5e4a", marginBottom: 12 }}>
-              Preview
-            </div>
-            <div style={{ background: "#111811", border: "1px solid #1a2a1a", borderRadius: 12, padding: 20 }}>
-              <div style={{
-                background: "#182818", borderRadius: 18, padding: "16px 16px 20px",
-                maxWidth: 300, margin: "0 auto", border: "1px solid #1a2a1a",
-                boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
-              }}>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 14,
-                }}>
-                  <div style={{
-                    width: 34, height: 34, borderRadius: "50%", background: "#25D366",
-                    display: "grid", placeItems: "center", fontSize: 15, flexShrink: 0,
-                  }}>👤</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{previewContact.name.split(" ")[0]}</div>
-                    <div style={{ fontSize: 11, color: "#25D366", fontFamily: "'DM Mono',monospace" }}>online</div>
-                  </div>
-                </div>
-                <div style={{
-                  background: "#005c4b", borderRadius: "8px 8px 0 8px",
-                  padding: "10px 13px", fontSize: 13, lineHeight: 1.65,
-                  fontFamily: "'DM Mono',monospace", color: "#e8f5e8",
-                  whiteSpace: "pre-wrap", wordBreak: "break-word",
-                }}>{previewMsg}</div>
-                <div style={{ textAlign: "right", fontSize: 10, color: "rgba(232,245,232,0.4)", marginTop: 4, fontFamily: "'DM Mono',monospace" }}>
-                  {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Send */}
-          <div style={{
-            background: "#111811", border: "1px solid #1a2a1a", borderRadius: 12,
-            padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-          }}>
-            <div style={{ fontSize: 13, color: "#5a7a5a" }}>
-              Ready to send to{" "}
-              <span style={{ color: "#e4ede4", fontWeight: 700 }}>{selected.size} {selected.size === 1 ? "person" : "people"}</span>
-              {selected.size > 10 && (
-                <><br /><span style={{ color: "#ffd166", fontSize: 12 }}>⚠ WhatsApp will open for each recipient</span></>
-              )}
-            </div>
-            <button
-              onClick={startSending}
-              disabled={!canSend}
-              style={{
-                display: "flex", alignItems: "center", gap: 9,
-                background: canSend ? "#25D366" : "#1a2a1a",
-                color: canSend ? "#000" : "#3a4e3a",
-                fontFamily: "'Syne',sans-serif", fontSize: 14, fontWeight: 800,
-                padding: "12px 26px", border: "none", borderRadius: 10,
-                cursor: canSend ? "pointer" : "not-allowed", transition: "all .2s",
-                boxShadow: canSend ? "0 4px 20px rgba(37,211,102,0.25)" : "none",
-              }}
-            >
-              💬 Open in WhatsApp
-            </button>
-          </div>
-        </main>
+            {activeTpl === i && <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg,${C.green},${C.accent})` }} />}
+            <div style={{ fontSize: isMobile ? 22 : 18, marginBottom: 4 }}>{t.emoji}</div>
+            <div style={{ fontSize: isMobile ? 11 : 12, fontWeight: 700, color: activeTpl === i ? C.green : C.text, lineHeight: 1.2 }}>{t.title}</div>
+          </button>
+        ))}
       </div>
 
-      {/* MODAL */}
-      {modal && (
+      <SectionLabel>Your Message</SectionLabel>
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", marginBottom: 16 }}>
         <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)",
-          display: "grid", placeItems: "center", zIndex: 1000, backdropFilter: "blur(8px)",
+          display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", justifyContent: "space-between",
+          padding: "10px 12px", borderBottom: `1px solid ${C.border}`, background: C.surface,
+        }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {["{{name}}", "{{track}}", "{{location}}", "{{level}}"].map((v) => (
+              <button key={v} onClick={() => insertVar(v)} style={{
+                fontFamily: C.mono, fontSize: 11, padding: "4px 10px", borderRadius: 6,
+                border: `1px solid ${C.border}`, background: "transparent", color: C.green, cursor: "pointer",
+              }}>{v}</button>
+            ))}
+          </div>
+          <span style={{ fontFamily: C.mono, fontSize: 11, color: C.muted }}>{message.length} chars</span>
+        </div>
+        <textarea
+          id="msg-ta"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder={"Type your message…\n\nUse {{name}}, {{track}}, {{location}} as placeholders."}
+          rows={isMobile ? 10 : 8}
+          style={{
+            width: "100%", background: "transparent", border: "none",
+            color: C.text, fontFamily: C.mono, fontSize: 13,
+            lineHeight: 1.75, padding: "14px", outline: "none", resize: "none", boxSizing: "border-box",
+          }}
+        />
+      </div>
+      {isMobile && (
+        <button onClick={() => setTab("preview")} style={{
+          width: "100%", background: C.green, color: "#000",
+          fontFamily: C.sans, fontSize: 15, fontWeight: 800,
+          padding: "14px", border: "none", borderRadius: 12, cursor: "pointer",
+        }}>Preview Message →</button>
+      )}
+    </div>
+  );
+
+  // ── Preview panel ─────────────────────────────────────────────────────────────
+  const ts0: TrackStyle = TRACK_STYLE[previewContact.track] ?? TRACK_STYLE["Blockchain"];
+  const PreviewPanel = (
+    <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+      <SectionLabel>Message Preview</SectionLabel>
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`, borderRadius: 10,
+        padding: "11px 14px", marginBottom: 16,
+        display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: C.mid,
+      }}>
+        <span>👁</span>
+        Previewing as <strong style={{ color: C.text }}>{previewContact.name.split(" ")[0]}</strong>
+        <span style={{
+          marginLeft: "auto", fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 20,
+          background: ts0.bg, color: ts0.color, border: `1px solid ${ts0.border}`,
+        }}>{previewContact.track}</span>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{
+          background: "#182818", borderRadius: 20, padding: "16px 16px 20px",
+          width: "100%", maxWidth: 360, border: `1px solid ${C.border}`,
+          boxShadow: "0 12px 48px rgba(0,0,0,0.6)",
         }}>
           <div style={{
-            background: "#111811", border: "1px solid #1a2a1a", borderRadius: 16,
-            padding: 28, width: 460, maxWidth: "94vw",
+            display: "flex", alignItems: "center", gap: 10,
+            paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 14,
           }}>
-            <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>
-              {done ? "🎉 All Done!" : "💬 Sending Messages"}
+            <div style={{ width: 38, height: 38, borderRadius: "50%", background: C.green, display: "grid", placeItems: "center", fontSize: 16 }}>👤</div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{previewContact.name.split(" ")[0]}</div>
+              <div style={{ fontSize: 12, color: C.green, fontFamily: C.mono }}>online</div>
             </div>
-            <div style={{ fontSize: 13, color: "#5a7a5a", marginBottom: 18 }}>
-              {done
-                ? "All chats opened in WhatsApp. Send each message manually."
-                : `${sendIdx} / ${sendQueue.length} opened…`}
-            </div>
+          </div>
+          <div style={{
+            background: "#005c4b", borderRadius: "10px 10px 2px 10px",
+            padding: "11px 14px", fontSize: 13, lineHeight: 1.7,
+            fontFamily: C.mono, color: "#e8f5e8", whiteSpace: "pre-wrap", wordBreak: "break-word",
+          }}>{previewMsg}</div>
+          <div style={{ textAlign: "right", fontSize: 11, color: "rgba(232,245,232,0.4)", marginTop: 4, fontFamily: C.mono }}>
+            {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} ✓✓
+          </div>
+        </div>
+      </div>
 
-            <div style={{ background: "#1a2a1a", borderRadius: 4, height: 6, marginBottom: 18, overflow: "hidden" }}>
-              <div style={{
-                height: "100%", borderRadius: 4,
-                background: "linear-gradient(90deg,#25D366,#a8ff78)",
-                width: `${progress}%`, transition: "width .3s",
-              }} />
-            </div>
+      {isMobile && (
+        <div style={{ marginTop: 16 }}>
+          <button onClick={() => setTab("send")} style={{
+            width: "100%", background: canSend ? C.green : C.border,
+            color: canSend ? "#000" : C.muted,
+            fontFamily: C.sans, fontSize: 15, fontWeight: 800,
+            padding: "14px", border: "none", borderRadius: 12, cursor: canSend ? "pointer" : "not-allowed",
+          }}>{canSend ? `Send to ${selected.size} ${selected.size === 1 ? "person" : "people"} →` : "Select contacts first"}</button>
+        </div>
+      )}
+    </div>
+  );
 
-            <div style={{
-              background: "#080c08", borderRadius: 8, padding: 14,
-              height: 150, overflowY: "auto",
-              fontFamily: "'DM Mono',monospace", fontSize: 12, lineHeight: 2,
-            }}>
-              {logs.map((l, i) => (
-                <div key={i} style={{ color: l.type === "ok" ? "#25D366" : l.type === "err" ? "#ff6b6b" : "#4a5e4a" }}>
-                  {l.text}
+  // ── Send panel ────────────────────────────────────────────────────────────────
+  const SendPanel = (
+    <div style={{ padding: 16, overflowY: "auto", flex: 1 }}>
+      <SectionLabel>Ready to Send</SectionLabel>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        {[
+          { label: "Recipients", value: `${selected.size}`, sub: "selected",   color: C.accent },
+          { label: "Message",    value: `${message.length}`, sub: "characters", color: C.green  },
+        ].map((card) => (
+          <div key={card.label} style={{
+            background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, textAlign: "center",
+          }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: card.color, fontFamily: C.mono }}>{card.value}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{card.sub}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.mid, marginTop: 4, textTransform: "uppercase", letterSpacing: "0.5px" }}>{card.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {selected.size > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <SectionLabel>Recipients</SectionLabel>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {[...selected].map((idx) => {
+              const r = REGISTRANTS[idx];
+              return (
+                <div key={idx} style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: C.card, border: `1px solid ${C.border}`,
+                  padding: "6px 12px", borderRadius: 20, fontSize: 13,
+                }}>
+                  <span style={{ fontWeight: 700 }}>{r.name.split(" ")[0]}</span>
+                  <button onClick={() => toggle(idx)} style={{
+                    background: "none", border: "none", cursor: "pointer", color: C.muted, fontSize: 16, padding: 0, lineHeight: 1,
+                  }}>×</button>
                 </div>
-              ))}
-              {!done && sendIdx < sendQueue.length && (
-                <div style={{ color: "#4a5e4a" }}>Next: {sendQueue[sendIdx]?.name}…</div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
-              <button onClick={() => setModal(false)} style={{
-                fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700,
-                padding: "9px 18px", borderRadius: 8, border: "1px solid #1a2a1a",
-                background: "transparent", color: "#e4ede4", cursor: "pointer",
-              }}>Close</button>
-
-              {!done && sendIdx < sendQueue.length && (
-                <button
-                  onClick={() => {
-                    const updated = openNext(sendQueue, sendIdx, logs);
-                    if (updated) setLogs(updated);
-                  }}
-                  style={{
-                    fontFamily: "'Syne',sans-serif", fontSize: 13, fontWeight: 700,
-                    padding: "9px 18px", borderRadius: 8, border: "none",
-                    background: "#25D366", color: "#000", cursor: "pointer",
-                  }}
-                >
-                  Open Next →
-                </button>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
+
+      {selected.size === 0 && (
+        <div style={{
+          background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)",
+          borderRadius: 10, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#ff6b6b",
+        }}>⚠ No contacts selected. Go to Contacts to pick recipients.</div>
+      )}
+
+      {selected.size > 10 && (
+        <div style={{
+          background: "rgba(255,209,102,0.08)", border: `1px solid rgba(255,209,102,0.2)`,
+          borderRadius: 10, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: C.warn,
+        }}>⚠ Sending to {selected.size} people — WhatsApp will open one at a time.</div>
+      )}
+
+      <button onClick={startSending} disabled={!canSend} style={{
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+        background: canSend ? C.green : C.border, color: canSend ? "#000" : C.muted,
+        fontFamily: C.sans, fontSize: 16, fontWeight: 800,
+        padding: "16px", border: "none", borderRadius: 12,
+        cursor: canSend ? "pointer" : "not-allowed",
+        boxShadow: canSend ? "0 4px 24px rgba(37,211,102,0.3)" : "none",
+        transition: "all .2s",
+      }}>💬 Open in WhatsApp</button>
+    </div>
+  );
+
+  // ── Send modal ────────────────────────────────────────────────────────────────
+  const SendModal = (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)",
+      display: "grid", placeItems: "center", zIndex: 1000, backdropFilter: "blur(8px)", padding: 16,
+    }}>
+      <div style={{
+        background: C.card, border: `1px solid ${C.border}`, borderRadius: 16,
+        padding: 24, width: "100%", maxWidth: 460,
+      }}>
+        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>{done ? "🎉 All Done!" : "💬 Sending Messages"}</div>
+        <div style={{ fontSize: 13, color: C.mid, marginBottom: 18 }}>
+          {done ? "All chats opened. Send each message in WhatsApp." : `${sendIdx} / ${sendQueue.length} opened…`}
+        </div>
+        <div style={{ background: C.border, borderRadius: 4, height: 6, marginBottom: 18, overflow: "hidden" }}>
+          <div style={{
+            height: "100%", borderRadius: 4,
+            background: `linear-gradient(90deg,${C.green},${C.accent})`,
+            width: `${progress}%`, transition: "width .3s",
+          }} />
+        </div>
+        <div style={{
+          background: C.bg, borderRadius: 8, padding: 12, height: 140, overflowY: "auto",
+          fontFamily: C.mono, fontSize: 12, lineHeight: 2,
+        }}>
+          {logs.map((l, i) => (
+            <div key={i} style={{ color: l.type === "ok" ? C.green : l.type === "err" ? "#ff6b6b" : C.muted }}>{l.text}</div>
+          ))}
+          {!done && sendIdx < sendQueue.length && <div style={{ color: C.muted }}>Next: {sendQueue[sendIdx]?.name}…</div>}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+          <button onClick={() => setModal(false)} style={{
+            fontFamily: C.sans, fontSize: 13, fontWeight: 700,
+            padding: "10px 18px", borderRadius: 8, border: `1px solid ${C.border}`,
+            background: "transparent", color: C.text, cursor: "pointer",
+          }}>Close</button>
+          {!done && sendIdx < sendQueue.length && (
+            <button onClick={() => { const u = openNext(sendQueue, sendIdx, logs); if (u) setLogs(u); }} style={{
+              fontFamily: C.sans, fontSize: 13, fontWeight: 700,
+              padding: "10px 18px", borderRadius: 8, border: "none",
+              background: C.green, color: "#000", cursor: "pointer",
+            }}>Open Next →</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Desktop render ────────────────────────────────────────────────────────────
+  if (!isMobile) {
+    return (
+      <div style={{
+        fontFamily: C.sans, background: C.bg, minHeight: "100vh", color: C.text,
+        backgroundImage: `radial-gradient(ellipse at 15% 25%, rgba(37,211,102,0.06) 0%, transparent 55%), radial-gradient(ellipse at 85% 75%, rgba(168,255,120,0.03) 0%, transparent 50%)`,
+      }}>
+        {/* Header */}
+        <header style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "16px 28px", borderBottom: `1px solid ${C.border}`,
+          background: "rgba(8,12,8,0.9)", backdropFilter: "blur(14px)",
+          position: "sticky", top: 0, zIndex: 100,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 38, height: 38, background: C.green, borderRadius: 10, display: "grid", placeItems: "center", fontSize: 18 }}>💬</div>
+            <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: "-0.4px" }}>
+              Web3<span style={{ color: C.green }}>Nova</span>{" "}
+              <span style={{ color: C.muted, fontWeight: 500, fontSize: 14 }}>DM Tool</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, fontFamily: C.mono, fontSize: 12 }}>
+            {[{ label: "registrants", val: REGISTRANTS.length, accent: false }, { label: "selected", val: selected.size, accent: true }].map((s) => (
+              <div key={s.label} style={{ background: C.card, border: `1px solid ${C.border}`, padding: "6px 14px", borderRadius: 20, color: C.mid }}>
+                <span style={{ color: s.accent ? C.accent : C.green, fontWeight: 600 }}>{s.val}</span> {s.label}
+              </div>
+            ))}
+          </div>
+        </header>
+
+        {/* 3-column grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr 360px", minHeight: "calc(100vh - 69px)", overflow: "hidden" }}>
+          <aside style={{ borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 69px)", position: "sticky", top: 69 }}>
+            {ContactsPanel}
+          </aside>
+          <div style={{ borderRight: `1px solid ${C.border}`, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+            {ComposePanel}
+          </div>
+          <div style={{ overflowY: "auto", display: "flex", flexDirection: "column" }}>
+            {PreviewPanel}
+            <div style={{ padding: "0 16px 16px", flexShrink: 0 }}>
+              <button onClick={startSending} disabled={!canSend} style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                background: canSend ? C.green : C.border, color: canSend ? "#000" : C.muted,
+                fontFamily: C.sans, fontSize: 15, fontWeight: 800,
+                padding: "14px", border: "none", borderRadius: 12,
+                cursor: canSend ? "pointer" : "not-allowed",
+                boxShadow: canSend ? "0 4px 24px rgba(37,211,102,0.3)" : "none",
+              }}>💬 Send to {selected.size} {selected.size === 1 ? "person" : "people"}</button>
+            </div>
+          </div>
+        </div>
+
+        {modal && SendModal}
+      </div>
+    );
+  }
+
+  // ── Mobile render ─────────────────────────────────────────────────────────────
+  const mobileContent: Record<Tab, React.ReactNode> = {
+    contacts: ContactsPanel,
+    compose:  ComposePanel,
+    preview:  PreviewPanel,
+    send:     SendPanel,
+  };
+
+  return (
+    <div style={{ fontFamily: C.sans, background: C.bg, height: "100dvh", color: C.text, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Header */}
+      <header style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "12px 16px", borderBottom: `1px solid ${C.border}`,
+        background: "rgba(8,12,8,0.97)", backdropFilter: "blur(14px)", flexShrink: 0,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, background: C.green, borderRadius: 8, display: "grid", placeItems: "center", fontSize: 15 }}>💬</div>
+          <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.3px" }}>
+            Web3<span style={{ color: C.green }}>Nova</span>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, fontFamily: C.mono, fontSize: 11 }}>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, padding: "4px 10px", borderRadius: 14, color: C.mid }}>
+            <span style={{ color: C.accent, fontWeight: 700 }}>{selected.size}</span> sel
+          </div>
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, padding: "4px 10px", borderRadius: 14, color: C.mid }}>
+            <span style={{ color: C.green, fontWeight: 700 }}>{REGISTRANTS.length}</span> total
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        {mobileContent[tab]}
+      </div>
+
+      {/* Bottom nav */}
+      <nav style={{
+        display: "flex", borderTop: `1px solid ${C.border}`,
+        background: "rgba(8,12,8,0.97)", backdropFilter: "blur(14px)", flexShrink: 0,
+        paddingBottom: "env(safe-area-inset-bottom, 8px)",
+      }}>
+        {TABS.map((t) => {
+          const isActive = tab === t.id;
+          const badge = t.id === "contacts" ? selected.size : t.id === "send" && selected.size > 0 ? selected.size : 0;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              padding: "10px 4px 10px", background: "transparent", border: "none", cursor: "pointer",
+              borderTop: `2px solid ${isActive ? C.green : "transparent"}`,
+            }}>
+              <div style={{ fontSize: 20, marginBottom: 3, position: "relative" }}>
+                {t.emoji}
+                {badge > 0 && (
+                  <span style={{
+                    position: "absolute", top: -4, right: -8,
+                    background: C.green, color: "#000",
+                    fontSize: 9, fontWeight: 800, fontFamily: C.mono,
+                    padding: "1px 5px", borderRadius: 10, minWidth: 16, textAlign: "center",
+                  }}>{badge}</span>
+                )}
+              </div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: isActive ? C.green : C.muted, letterSpacing: "0.3px" }}>{t.label}</div>
+            </button>
+          );
+        })}
+      </nav>
+
+      {modal && SendModal}
     </div>
   );
 }
