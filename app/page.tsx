@@ -35,53 +35,46 @@ type Tab = "contacts" | "compose" | "preview" | "send";
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const REGISTRANTS: Registrant[] = [
-  {name:"Maebi Maclean",phone:"08029373120",track:"UI/UX",location:"Futa",level:"Beginner",twitter:"@horiznmac"},
-  {name:"Vivian Okosun",phone:"09079839008",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"@viv_ifox"},
-  {name:"Gabriel Oyinlola",phone:"09136287397",track:"Web Dev",location:"Abeokuta",level:"Intermediate",twitter:"Oyinlola Gabriel"},
-  {name:"Ambrose Joseph Jere",phone:"08148708918",track:"Blockchain",location:"Jos",level:"Beginner",twitter:"@jere45updates"},
-  {name:"Stephen Dauda",phone:"09064601196",track:"Blockchain",location:"Online",level:"Beginner",twitter:"Chimiofweb3"},
-  {name:"Bello Habeebullah Adedipupo",phone:"08137811585",track:"UI/UX",location:"Online",level:"Beginner",twitter:"BeLLoXXii"},
-  {name:"Njemurim Edem",phone:"09154495001",track:"Blockchain",location:"Online",level:"Intermediate",twitter:"Njemurim."},
-  {name:"Oke Donald",phone:"09064286190",track:"UI/UX",location:"Lagos",level:"Beginner",twitter:"Donald64434oke"},
-  {name:"Goodness Ikubuwaje",phone:"08147494896",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"xxmonero"},
-  {name:"Imadiyi Iguodala Joel",phone:"09060884117",track:"Blockchain",location:"Futa",level:"Intermediate",twitter:"Cryptomanic137"},
-  {name:"Osakwe Samuel Oluwadarasimi",phone:"08122559307",track:"Web Dev",location:"Ibadan",level:"Beginner",twitter:"Osakwe Samuel"},
-  {name:"Gabriel Chimezie Nwogbo",phone:"09033145602",track:"Blockchain",location:"Online",level:"Beginner",twitter:"@skylordmiles"},
-  {name:"Ajibola Michael",phone:"08136878310",track:"Blockchain",location:"Futa",level:"Advanced",twitter:"AjibolaMik658"},
-  {name:"Peace Ayinla",phone:"08148746237",track:"UI/UX",location:"Futa",level:"Beginner",twitter:"@AyinlaGrafix"},
-  {name:"Emmanuel Omolafe Omotosho",phone:"07081889966",track:"Web Dev",location:"Akungba",level:"Beginner",twitter:"Omolafe Emmanuel"},
-  {name:"Okpare Ufuoma Peace",phone:"09071141064",track:"Web Dev",location:"Online",level:"Beginner",twitter:"@OkpareU"},
-  {name:"Taofeeq Mukhtar Akorede",phone:"07030130058",track:"Blockchain",location:"Ile Ife",level:"Intermediate",twitter:"@Smart0058"},
-  {name:"Itoro Daniel",phone:"08130312380",track:"Blockchain",location:"Virtual",level:"Intermediate",twitter:"Adiaha_aity"},
-  {name:"Patience Igwe",phone:"09033643902",track:"Blockchain",location:"Lagos",level:"Beginner",twitter:"Official_omaah_"},
-  {name:"Chukwu Judith",phone:"08057219649",track:"Web Dev",location:"Abuja",level:"Advanced",twitter:"Judyyliah"},
-  {name:"Nwachukwu Esther",phone:"09024409762",track:"Blockchain",location:"Abuja",level:"Beginner",twitter:"Es_ty101"},
-  {name:"Edu Aisha",phone:"09011394495",track:"UI/UX",location:"Lagos",level:"Intermediate",twitter:"Eniola."},
-  {name:"Oremei Akande",phone:"08028402202",track:"Blockchain",location:"Ibadan",level:"Advanced",twitter:"@OremeiPraise"},
-  {name:"Eteng Obaseoyi Ikpi",phone:"09161970780",track:"UI/UX",location:"Calabar",level:"Beginner",twitter:"Dolph club"},
-  {name:"Emmanuella Onuekwutu",phone:"09160087726",track:"Web Dev",location:"Lagos",level:"Beginner",twitter:"@Onuekwutunam"},
-  {name:"Fajimi Abdulsamad Ayotomiwa",phone:"08169571781",track:"Blockchain",location:"Oyo State",level:"Intermediate",twitter:"Phajbaba001"},
-  {name:"Abdulkarim Naja'atu",phone:"09138890055",track:"Blockchain",location:"Abuja",level:"Beginner",twitter:"atu_naja8946"},
-  {name:"Olubusola Odunuga-Adebiyi",phone:"08034616060",track:"UI/UX",location:"Lagos",level:"Intermediate",twitter:"Olubusolamitee"},
-  {name:"Babatunde Timileyin",phone:"08169433210",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"@temmybabs105"},
-  {name:"Peters Juwon Esther",phone:"07017773503",track:"Blockchain",location:"Ibadan",level:"Intermediate",twitter:"@juwon_peters_"},
-  {name:"Akerele Divine",phone:"09011492036",track:"Blockchain",location:"Futa",level:"Beginner",twitter:"D_kidART"},
-  {name:"Aiki Muhammad Olanrewaju",phone:"09155604600",track:"Web Dev",location:"Futa",level:"Beginner",twitter:"Iykelanre"},
-  {name:"Roseline Adeola Adebayo",phone:"08163209560",track:"Blockchain",location:"Ife",level:"Beginner",twitter:"@RoselineAdebay2"},
-  {name:"Michael Nkariko",phone:"08133122266",track:"Web Dev",location:"Akure",level:"Intermediate",twitter:"Michael nkariko"},
+  {name:"Arije Alice",phone:"07049249248",track:"Blockchain",location:"FUTA",level:"Beginner",twitter:"@AliceArije"},
+  {name:"Adeniji Sodeeq Oladoja",phone:"09063290648",track:"AI & Automation",location:"Online",level:"Intermediate",twitter:"@Boff_biggie"},
+  {name:"Olufogobomi Gaius Adeoluwa",phone:"07014714872",track:"Web Dev",location:"Online",level:"Beginner",twitter:"Olufogobomi Adeoluwa"},
+  {name:"Solomon Blessing Oluwafunmilayo",phone:"07071525618",track:"AI & Automation",location:"Online",level:"Beginner",twitter:"Funmi447302"},
+  {name:"Kehinde Abdullai",phone:"08024309742",track:"AI & Automation",location:"Online",level:"Beginner",twitter:"@Tijesu03"},
+  {name:"Diya Deborah Oluwafunso",phone:"09078026303",track:"AI & Automation",location:"Online",level:"Beginner",twitter:"@diya_debor50709"},
+  {name:"Ogunsanya Oluwatobiloba Adebayo",phone:"08134916062",track:"Blockchain",location:"FUTA",level:"Beginner",twitter:"Techking"},
+  {name:"Idowu Immanuel Oluwadaraninumi",phone:"09063644553",track:"Web Dev",location:"FUTA",level:"Intermediate",twitter:"—"},
+  {name:"Mukhtar Mubarak",phone:"09061675692",track:"Web Dev",location:"FUTA",level:"Beginner",twitter:"Mukhtar Mubarak"},
+  {name:"Divine Akintola",phone:"09071612052",track:"Web Dev",location:"Online",level:"Intermediate",twitter:"@digxzy_gadget1"},
+  {name:"Emmanuel Alaba Olayinka",phone:"08144700674",track:"Blockchain",location:"Online",level:"Beginner",twitter:"@Emreethekid"},
+  {name:"Oyetunji Peter",phone:"07085764736",track:"Blockchain",location:"FUTA",level:"Beginner",twitter:"@oyetunji_p87566"},
+  {name:"Atere Abundance Ibukunola",phone:"08051016176",track:"ZK & Rust",location:"FUTA",level:"Beginner",twitter:"@Ibksmart_505"},
+  {name:"Okunola Olamide",phone:"08188508352",track:"AI & Automation",location:"FUTA",level:"Intermediate",twitter:"Vira_kael"},
+  {name:"Mas'ud Abdullah Olaoye",phone:"08088547002",track:"Web Dev",location:"FUTA",level:"Intermediate",twitter:"MAbdullah8032"},
+  {name:"Petersen Daniel",phone:"09127272701",track:"ZK & Rust",location:"FUTA",level:"Beginner",twitter:"@Dan_zazzy"},
+  {name:"Aiki Muhammad Olanrewaju",phone:"09155604600",track:"Web Dev",location:"FUTA",level:"Beginner",twitter:"Iykelanre"},
+  {name:"Kuye Toluwanimi Joseph",phone:"07038208287",track:"AI & Automation",location:"FUTA",level:"Intermediate",twitter:"@Toluwanimi16095"},
+  {name:"Adenaya Festus",phone:"09112330992",track:"Web Dev",location:"Online",level:"Beginner",twitter:"@festus042"},
+  {name:"Olawale Olaribigbe Ayomide",phone:"08080160424",track:"AI & Automation",location:"FUTA",level:"Beginner",twitter:"@Satoshisavy"},
+  {name:"Etim Iniekung",phone:"08062639417",track:"Web Dev",location:"Online",level:"Intermediate",twitter:"timmz@mystglac"},
+  {name:"Taofeeq Mukhtar Akorede",phone:"07030130058",track:"ZK & Rust",location:"Online",level:"Intermediate",twitter:"@smart0058"},
+  {name:"Omotunlese Monday Oluwatosin",phone:"09025517785",track:"Web Dev",location:"Online",level:"Beginner",twitter:"@OmotunleseM"},
+  {name:"Winniran Oreoluwa Olabode",phone:"08152635583",track:"Web Dev",location:"FUTA",level:"Intermediate",twitter:"@BrightCode12"},
+  {name:"Victor Michael",phone:"08056358132",track:"ZK & Rust",location:"FUTA",level:"Beginner",twitter:"@Viktor_micel"},
+  {name:"Enyogai Michael Dike",phone:"09033870010",track:"UI/UX",location:"FUTA",level:"Beginner",twitter:"MDThirve01"},
+  {name:"Ibrahim Abraham",phone:"09019145380",track:"AI & Automation",location:"FUTA",level:"Beginner",twitter:"@crypticclad"},
 ];
 
 const DEFAULT_MSG = `Hi {{name}}! 👋
 
-I'm the founder of Web3Nova. I saw your application to learn *{{track}}* and I'm impressed by your interest! 🚀
+We received your application to join *Web3Nova Cohort III* and we'd love to have you on board! 🎉
 
-We'd love to have you join us officially — register for *Cohort III* here 👇
+Please join this group for further information about Cohort III 👇
 
-https://web3nova.org/register
+[GROUP LINK HERE]
 
-Cohort III kicks off the *first week of April* — spots are limited, so register soon!
+Cohort III kicks off the *first week of April* — don't miss out!
 
-See you on the inside 💪
+See you inside 💪
 — Web3Nova`;
 
 const TEMPLATES: Template[] = [
@@ -94,12 +87,14 @@ const TEMPLATES: Template[] = [
 ];
 
 const TRACK_STYLE: Record<string, TrackStyle> = {
-  Blockchain: { bg: "rgba(37,211,102,0.12)", color: "#25D366", border: "rgba(37,211,102,0.25)" },
-  "Web Dev":  { bg: "rgba(168,255,120,0.1)",  color: "#a8ff78", border: "rgba(168,255,120,0.25)" },
-  "UI/UX":    { bg: "rgba(255,209,102,0.1)",  color: "#ffd166", border: "rgba(255,209,102,0.25)" },
+  Blockchain:       { bg: "rgba(37,211,102,0.12)",  color: "#25D366", border: "rgba(37,211,102,0.25)" },
+  "Web Dev":        { bg: "rgba(168,255,120,0.1)",   color: "#a8ff78", border: "rgba(168,255,120,0.25)" },
+  "UI/UX":          { bg: "rgba(255,209,102,0.1)",   color: "#ffd166", border: "rgba(255,209,102,0.25)" },
+  "AI & Automation":{ bg: "rgba(100,160,255,0.12)",  color: "#7eb8ff", border: "rgba(100,160,255,0.25)" },
+  "ZK & Rust":      { bg: "rgba(220,120,255,0.12)",  color: "#d87eff", border: "rgba(220,120,255,0.25)" },
 };
 
-const FILTERS: string[] = ["All", "Blockchain", "Web Dev", "UI/UX", "Futa", "Online"];
+const FILTERS: string[] = ["All", "Blockchain", "Web Dev", "UI/UX", "AI & Automation", "ZK & Rust", "FUTA", "Online"];
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "contacts", label: "Contacts", emoji: "👥" },
@@ -194,7 +189,7 @@ export default function Web3NovaDMTool() {
       const matchFilter =
         filter === "All" ||
         r.track === filter ||
-        (filter === "Futa"   && r.location.toLowerCase().includes("futa")) ||
+        (filter === "FUTA"   && r.location.toLowerCase().includes("futa")) ||
         (filter === "Online" && ["online", "virtual"].includes(r.location.toLowerCase()));
       return matchSearch && matchFilter;
     });
