@@ -297,14 +297,7 @@ export default function StackSwap() {
   }, [bankCode, accountNumber]);
 
   // ════════════════════════════════════════════════════════════════
-  // OFFRAMP — initialize → wallet tx
-  // NOTE: notifyBackend has been removed from the frontend.
-  // The backend indexer (services/stacksIndexer.js) watches the
-  // blockchain and calls /api/offramp/confirm-receipt server-side
-  // when it detects the inbound transfer with the correct memo.
-  // This fixes the EPROTO SSL error caused by calling an internal
-  // endpoint from the browser, and removes the security risk of
-  // exposing NEXT_PUBLIC_INTERNAL_KEY.
+  // OFFRAMP — initialize → wallet tx → notify backend
   // ════════════════════════════════════════════════════════════════
   const submitOfframp = async () => {
     if (!bankVerified || !walletConnected) return;
@@ -321,8 +314,18 @@ export default function StackSwap() {
       setSubmitting(false);
       setStep("sell_sending");
 
-      const adminAddress = data.data.depositInstructions.sendTo;
-      const memo         = data.data.depositInstructions.memo;
+      const adminAddress        = data.data.depositInstructions.sendTo;
+      const memo                = data.data.depositInstructions.memo;
+      const transactionReference = data.data.transactionReference;
+
+      // ── Helper: notify backend after wallet signs ──────────────
+      const notifyBackend = (stacksTxId: string) => {
+        fetch(`${API_BASE}/api/offramp/notify-tx`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transactionReference, stacksTxId }),
+        }).catch((err) => console.error("notify-tx failed:", err));
+      };
 
       if (selectedToken === "STX") {
         openSTXTransfer({
@@ -334,10 +337,7 @@ export default function StackSwap() {
           onFinish: (txData: { txId: string }) => {
             setBroadcastTxId(txData.txId);
             setStep("sell_pending");
-            // ✅ No notifyBackend call here.
-            // The Stacks indexer (stacksIndexer.js) running on the server
-            // will detect this transaction on-chain and call confirm-receipt
-            // internally. This is the secure, correct architecture.
+            notifyBackend(txData.txId);
           },
           onCancel: () => {
             setSubmitError("Transaction cancelled in wallet.");
@@ -361,9 +361,7 @@ export default function StackSwap() {
           onFinish: (txData: { txId: string }) => {
             setBroadcastTxId(txData.txId);
             setStep("sell_pending");
-            // ✅ No notifyBackend call here either.
-            // The indexer handles USDC contract-call events by
-            // parsing post-conditions and FT transfer events.
+            notifyBackend(txData.txId);
           },
           onCancel: () => {
             setSubmitError("Transaction cancelled in wallet.");
