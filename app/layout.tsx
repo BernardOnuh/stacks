@@ -31,7 +31,7 @@ export default function RootLayout({
         {children}
         <Script
           src="https://sdk.monnify.com/plugin/monnify.js"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
         />
       </body>
     </html>
