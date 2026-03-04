@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "StacksSwap",
   description: "StacksSwap",
+  other: {
+    "talentapp:project_verification": "a44aa4a29d043d2adf9653d0d5889ade60e9715728cca225e277c33c9d39b860b390fa333caf29b3d87676fc641da3827bdd9fdf51b325384bbecb60194c383e",
+  },
 };
 
 export default function RootLayout({
