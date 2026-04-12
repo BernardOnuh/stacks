@@ -8,6 +8,7 @@ import {
   getLocalStorage,
   openSTXTransfer,
 } from "@stacks/connect";
+
 import { STACKS_MAINNET, STACKS_TESTNET } from "@stacks/network";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://stackswap-backend-d84c5a71d927.herokuapp.com";
@@ -234,7 +235,7 @@ export default function StackSwap() {
   }, []);
 
   const verifyBank = useCallback(async () => {
-    if (!bankCode || accountNumber.length !== 10) { setBankError("Enter a valid 10-digit account number and select a bank."); return; }
+    if (!bankCode || accountNumber.length !== 10) { setBankError("Enter a valid 10 digit account number and select a bank."); return; }
     setVerifyingBank(true); setBankError(""); setBankVerified(false); setAccountName("");
     try {
       const res  = await fetch(`${API_BASE}/api/offramp/verify-account`, {
@@ -338,6 +339,7 @@ export default function StackSwap() {
 
   // ── handleCTA: checks liquidity before opening sell_bank step ─────────────
 // ── handleCTA: checks liquidity before opening sell_bank step ─────────────
+  
 const handleCTA = useCallback(async (nextStep: FlowStep) => {
   if (!walletConnected) {
     await connectWallet();
