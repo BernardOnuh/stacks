@@ -555,7 +555,7 @@ const handleCTA = useCallback(async (nextStep: FlowStep) => {
         <div style={{ background:"linear-gradient(135deg,#7C3AED11,#A855F711)",border:"1px solid #7C3AED33",borderRadius:14,padding:"10px 16px",display:"flex",alignItems:"center",gap:10,fontSize:12 }}>
           <span style={{ fontSize:16 }}>🧪</span>
           <div>
-            <span style={{ color:"#C084FC",fontWeight:600 }}>Beta Mode — </span>
+            <span style={{ color:"#C084FC",fontWeight:600 }}>Focus Mode — </span>
             <span style={{ color:"#5A5A8A" }}>Features may change. Use small amounts.</span>
           </div>
           <div style={{ marginLeft:"auto",fontSize:10,color:"#7C3AED",background:"#7C3AED22",borderRadius:6,padding:"3px 8px",fontWeight:600,whiteSpace:"nowrap" }}>v0.1.0</div>
